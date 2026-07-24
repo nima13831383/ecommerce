@@ -5,10 +5,9 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+// app/Models/ProductVariation.php
 class ProductVariation extends Model
 {
-    use SoftDeletes;
-
     protected $fillable = [
         'product_id',
         'sku',
@@ -19,12 +18,8 @@ class ProductVariation extends Model
         'manage_stock',
         'stock_quantity',
         'stock_status',
-        'low_stock_threshold',
         'weight',
-        'length',
-        'width',
-        'height',
-        'is_default',
+        'image',
         'is_active',
     ];
 
@@ -34,16 +29,22 @@ class ProductVariation extends Model
         'sale_starts_at' => 'datetime',
         'sale_ends_at'   => 'datetime',
         'manage_stock'   => 'boolean',
-        'is_default'     => 'boolean',
         'is_active'      => 'boolean',
+        'weight'         => 'decimal:2',
     ];
 
     public function product()
     {
         return $this->belongsTo(Product::class);
     }
+
     public function attributeValues()
     {
-        return $this->belongsToMany(AttributeValue::class);
+        return $this->belongsToMany(
+            AttributeValue::class,
+            'attribute_value_product_variation',
+            'product_variation_id',
+            'attribute_value_id'
+        );
     }
 }

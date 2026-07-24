@@ -13,27 +13,22 @@ class OrderItem extends Model
         'product_id',
         'product_variation_id',
         'product_name',
-        'variation_label',
         'sku',
+        'variation_attributes',
         'quantity',
         'unit_price',
-        'subtotal',
         'discount_amount',
         'tax_amount',
-        'tax_rate',
-        'total',
-        'meta',
+        'line_total',
     ];
 
     protected $casts = [
-        'unit_price'      => 'decimal:0',
-        'subtotal'        => 'decimal:0',
-        'discount_amount' => 'decimal:0',
-        'tax_amount'      => 'decimal:0',
-        'total'           => 'decimal:0',
-        'meta'            => 'array',
+        'variation_attributes' => 'array',
+        'unit_price'           => 'decimal:0',
+        'discount_amount'      => 'decimal:0',
+        'tax_amount'           => 'decimal:0',
+        'line_total'           => 'decimal:0',
     ];
-
     public function order()
     {
         return $this->belongsTo(Order::class);
@@ -42,7 +37,7 @@ class OrderItem extends Model
     {
         return $this->belongsTo(Product::class);
     }
-    public function productVariation()
+    public function variation()
     {
         return $this->belongsTo(ProductVariation::class);
     }

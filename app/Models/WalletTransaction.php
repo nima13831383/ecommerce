@@ -10,21 +10,33 @@ class WalletTransaction extends Model
         'wallet_id',
         'type',
         'amount',
-        'fee',
-        'status',
+        'balance_after',
+        'reason',
         'description',
+        'status',
+        'reference_type',
         'reference_id',
+        'direction',
+        'balance_before',
+        'reversed_at',
         'meta',
+
     ];
 
     protected $casts = [
         'amount' => 'decimal:0',
-        'fee'    => 'decimal:0',
         'meta'   => 'array',
+        'balance_after' => 'decimal:0',
+        'balance_before' => 'decimal:0',
+        'reversed_at'    => 'datetime',
     ];
 
     public function wallet()
     {
         return $this->belongsTo(Wallet::class);
+    }
+    public function reference()
+    {
+        return $this->morphTo();
     }
 }

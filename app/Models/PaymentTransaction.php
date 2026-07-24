@@ -9,20 +9,23 @@ class PaymentTransaction extends Model
 {
     protected $fillable = [
         'payment_id',
-        'stage',
+        'type',
         'status',
         'amount',
-        'gateway_response',
-        'ip_address',
+        'authority',
+        'reference_id',
+        'gateway_status_code',
+        'request_payload',
+        'response_payload',
+        'message',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'amount' => 'decimal:0',
-            'gateway_response' => 'array',
-        ];
-    }
+    protected $casts = [
+        'amount'           => 'decimal:0',
+        'request_payload'  => 'array',
+        'response_payload' => 'array',
+    ];
+
 
     public function payment(): BelongsTo
     {

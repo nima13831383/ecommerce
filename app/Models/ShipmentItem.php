@@ -8,7 +8,6 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 class ShipmentItem extends Model
 {
     protected $fillable = ['shipment_id', 'order_item_id', 'quantity'];
-
     public function shipment(): BelongsTo
     {
         return $this->belongsTo(Shipment::class);

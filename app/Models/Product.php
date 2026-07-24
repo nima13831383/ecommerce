@@ -5,6 +5,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
+
+// app/Models/Product.php
 class Product extends Model
 {
     use SoftDeletes;
@@ -35,6 +37,10 @@ class Product extends Model
         'shipping_class_id',
         'external_url',
         'button_text',
+        'views_count',
+        'sales_count',
+        'rating_avg',
+        'rating_count',
         'meta_title',
         'meta_description',
         'status',
@@ -47,43 +53,61 @@ class Product extends Model
         'sale_price'     => 'decimal:0',
         'sale_starts_at' => 'datetime',
         'sale_ends_at'   => 'datetime',
-        'published_at'   => 'datetime',
         'manage_stock'   => 'boolean',
         'is_downloadable' => 'boolean',
         'is_virtual'     => 'boolean',
         'is_featured'    => 'boolean',
+        'published_at'   => 'datetime',
+        'weight'         => 'decimal:2',
+        'rating_avg'     => 'decimal:2',
     ];
 
     public function brand()
     {
         return $this->belongsTo(Brand::class);
     }
-    public function variations()
-    {
-        return $this->hasMany(ProductVariation::class);
-    }
     public function images()
     {
         return $this->hasMany(ProductImage::class);
     }
+    public function variations()
+    {
+        return $this->hasMany(ProductVariation::class);
+    }
     public function reviews()
     {
-        return $this->hasMany(ProductReview::class);
+        return $this->hasMany(Review::class);
     }
     public function questions()
     {
         return $this->hasMany(ProductQuestion::class);
     }
+
     public function categories()
     {
-        return $this->belongsToMany(Category::class);
+        return $this->belongsToMany(Category::class, 'category_product');
     }
+
+    public function tags()
+    {
+        return $this->belongsToMany(Tag::class, 'product_tag');
+    }
+
     public function attributes()
     {
-        return $this->belongsToMany(Attribute::class)->withPivot('values');
+        return $this->belongsToMany(Attribute::class, 'attribute_product')
+            ->withPivot('is_variation', 'is_visible', 'sort_order');
     }
     public function taxClass()
     {
-        return $this->belongsTo(TaxClass::class);
+        return $this->belongsTo(TaxClass::class)->withDefault();
+    }
+
+
+
+
+    public function seoMeta()
+    {
+        return $this->morphOne(SeoMeta::class, 'seoable');
     }
 }

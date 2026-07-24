@@ -9,11 +9,16 @@ class OrderStatusHistory extends Model
 {
     protected $fillable = [
         'order_id',
+        'user_id',
         'from_status',
         'to_status',
-        'status_type',
+        'type',
         'comment',
-        'changed_by',
+        'notify_customer',
+    ];
+
+    protected $casts = [
+        'notify_customer' => 'boolean',
     ];
 
     public function order(): BelongsTo
@@ -24,5 +29,9 @@ class OrderStatusHistory extends Model
     public function changedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'changed_by');
+    }
+    public function user()
+    {
+        return $this->belongsTo(User::class);
     }
 }

@@ -1,36 +1,46 @@
 <?php
-// app/Models/ProductQuestion.php
+
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasMany;
 
-class ProductQuestion extends Model
+// app/Models/Review.php
+//for products
+class Review extends Model
 {
     protected $fillable = [
         'product_id',
         'user_id',
+        'order_id',
         'author_name',
+        'rating',
+        'title',
         'body',
+        'verified_purchase',
         'status',
-        'answers_count',
+        'helpful_count',
     ];
 
     protected $casts = [
-        'answers_count' => 'integer',
+        'rating'            => 'integer',
+        'verified_purchase' => 'boolean',
+        'helpful_count'     => 'integer',
     ];
-    public function product(): BelongsTo
+    public function product()
     {
         return $this->belongsTo(Product::class);
     }
-    public function user(): BelongsTo
+    public function user()
     {
         return $this->belongsTo(User::class);
     }
-    public function answers(): HasMany
+    public function order()
     {
-        return $this->hasMany(ProductAnswer::class, 'question_id');
+        return $this->belongsTo(Order::class);
+    }
+    public function votes()
+    {
+        return $this->hasMany(ReviewVote::class);
     }
     public function scopeApproved($q)
     {
@@ -41,6 +51,7 @@ class ProductQuestion extends Model
         return $q->where('status', 'pending');
     }
 
+    // نام نمایشی: کاربر ثبت‌شده یا مهمان
     public function getDisplayNameAttribute(): ?string
     {
         return $this->user?->exists ? $this->user->name : $this->author_name;

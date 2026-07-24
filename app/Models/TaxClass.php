@@ -23,7 +23,7 @@ class TaxClass extends Model
     }
 }
 
-// app/Models/TaxRate.php
+// a pp/Models/TaxRate.php
 class TaxRate extends Model
 {
     protected $fillable = [

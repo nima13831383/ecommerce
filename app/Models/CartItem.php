@@ -10,19 +10,17 @@ class CartItem extends Model
     protected $fillable = [
         'cart_id',
         'product_id',
-        'variation_id',
+        'product_variation_id',
         'quantity',
         'unit_price',
+        'line_total',
         'options',
     ];
-
-    protected function casts(): array
-    {
-        return [
-            'unit_price' => 'decimal:0',
-            'options' => 'array',
-        ];
-    }
+    protected $casts = [
+        'unit_price'  => 'decimal:0',
+        'line_total'  => 'decimal:0',
+        'options'     => 'array',
+    ];
 
     public function cart(): BelongsTo
     {
@@ -32,5 +30,9 @@ class CartItem extends Model
     public function product(): BelongsTo
     {
         return $this->belongsTo(Product::class);
+    }
+    public function variation()
+    {
+        return $this->belongsTo(ProductVariation::class, 'product_variation_id');
     }
 }

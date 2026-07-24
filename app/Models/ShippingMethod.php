@@ -9,24 +9,26 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class ShippingMethod extends Model
 {
     protected $fillable = [
-        'shipping_zone_id',
         'name',
-        'type',
-        'cost',
-        'is_enabled',
-        'min_amount',
-        'max_amount',
-        'settings',
+        'slug',
+        'carrier',
+        'logo',
+        'calc_type',
+        'requires_tracking',
+        'is_pickup',
+        'is_cod_available',
+        'estimated_days_min',
+        'estimated_days_max',
+        'sort_order',
+        'is_active',
     ];
 
     protected $casts = [
-        'cost'       => 'decimal:0',
-        'min_amount' => 'decimal:0',
-        'max_amount' => 'decimal:0',
-        'is_enabled' => 'boolean',
-        'settings'   => 'array',
+        'requires_tracking' => 'boolean',
+        'is_pickup'         => 'boolean',
+        'is_cod_available'  => 'boolean',
+        'is_active'         => 'boolean',
     ];
-
     public function zone()
     {
         return $this->belongsTo(ShippingZone::class, 'shipping_zone_id');

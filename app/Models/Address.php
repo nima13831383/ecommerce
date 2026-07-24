@@ -22,6 +22,7 @@ class Address extends Model
         'lat',
         'lng',
         'is_default',
+        'company',
     ];
 
     protected function casts(): array

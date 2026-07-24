@@ -42,4 +42,8 @@ class Category extends Model
     {
         return $this->belongsToMany(Product::class, 'product_categories');
     }
+    public function seoMeta()
+    {
+        return $this->morphOne(SeoMeta::class, 'seoable');
+    }
 }

@@ -9,10 +9,7 @@ class ShippingClass extends Model
 {
     protected $fillable = ['name', 'slug', 'description', 'sort_order', 'is_active'];
 
-    protected function casts(): array
-    {
-        return ['is_active' => 'boolean'];
-    }
+    protected $casts = ['is_active' => 'boolean'];
 
     public function products(): HasMany
     {

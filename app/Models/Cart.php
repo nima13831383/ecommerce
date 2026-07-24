@@ -5,17 +5,36 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Cart extends Model
 {
-    protected $fillable = ['user_id', 'token', 'last_activity_at'];
+    use SoftDeletes;
 
-    protected function casts(): array
-    {
-        return [
-            'last_activity_at' => 'datetime',
-        ];
-    }
+    protected $fillable = [
+        'user_id',
+        'token',
+        'currency',
+        'status',
+        'coupon_id',
+        'subtotal',
+        'discount_total',
+        'tax_total',
+        'shipping_total',
+        'grand_total',
+        'notes',
+        'last_activity_at',
+        'reminder_sent_at',
+    ];
+    protected $casts = [
+        'subtotal'        => 'decimal:0',
+        'discount_total'  => 'decimal:0',
+        'tax_total'       => 'decimal:0',
+        'shipping_total'  => 'decimal:0',
+        'grand_total'     => 'decimal:0',
+        'last_activity_at'  => 'datetime',
+        'reminder_sent_at'  => 'datetime',
+    ];
 
     public function user(): BelongsTo
     {

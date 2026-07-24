@@ -27,16 +27,16 @@ class Coupon extends Model
     ];
 
     protected $casts = [
-        'amount'               => 'decimal:0',
-        'min_spend'            => 'decimal:0',
-        'max_spend'            => 'decimal:0',
-        'max_discount'         => 'decimal:0',
-        'free_shipping'        => 'boolean',
-        'individual_use_only'  => 'boolean',
-        'exclude_sale_items'   => 'boolean',
-        'is_active'            => 'boolean',
-        'starts_at'            => 'datetime',
-        'expires_at'           => 'datetime',
+        'amount'              => 'decimal:0',
+        'min_spend'           => 'decimal:0',
+        'max_spend'           => 'decimal:0',
+        'max_discount'        => 'decimal:0',
+        'free_shipping'       => 'boolean',
+        'individual_use_only' => 'boolean',
+        'exclude_sale_items'  => 'boolean',
+        'is_active'           => 'boolean',
+        'starts_at'           => 'datetime',
+        'expires_at'          => 'datetime',
     ];
 
     public function usages()

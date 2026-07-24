@@ -28,7 +28,6 @@ class Order extends Model
         'items_subtotal',
         'discount_total',
         'tax_total',
-        'tax_breakdown',
         'shipping_total',
         'grand_total',
         'paid_total',
@@ -44,12 +43,12 @@ class Order extends Model
         'shipped_at',
         'delivered_at',
         'cancelled_at',
+        'tax_breakdown',
     ];
 
     protected $casts = [
         'billing_address'  => 'array',
         'shipping_address' => 'array',
-        'tax_breakdown'    => 'array',
         'items_subtotal'   => 'decimal:0',
         'discount_total'   => 'decimal:0',
         'tax_total'        => 'decimal:0',
@@ -61,11 +60,15 @@ class Order extends Model
         'shipped_at'       => 'datetime',
         'delivered_at'     => 'datetime',
         'cancelled_at'     => 'datetime',
+        'tax_breakdown' => 'array',
     ];
-
     public function user()
     {
         return $this->belongsTo(User::class);
+    }
+    public function cart()
+    {
+        return $this->belongsTo(Cart::class);
     }
     public function items()
     {

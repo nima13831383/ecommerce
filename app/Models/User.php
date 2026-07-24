@@ -9,11 +9,12 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable;
+    use HasFactory, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -24,8 +25,19 @@ class User extends Authenticatable
         'name',
         'email',
         'password',
+        'mobile',
+        'national_code',
+        'gender',
+        'birth_date',
+        'avatar',
+        'is_legal',
+        'company_name',
+        'economic_code',
+        'registration_number',
+        'status',
+        'last_login_at',
+        'last_login_ip',
     ];
-
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -42,16 +54,22 @@ class User extends Authenticatable
      * @return array<string, string>
      */
 
+    protected $casts = [
+        'email_verified_at'  => 'datetime',
+        'mobile_verified_at' => 'datetime',
+        'birth_date'         => 'date',
+        'is_legal'           => 'boolean',
+        'last_login_at'      => 'datetime',
+    ];
 
-
-    protected function casts(): array
-    {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-            'is_active' => 'boolean',
-        ];
-    }
+    // protected function casts(): array
+    // {
+    //     return [
+    //         'email_verified_at' => 'datetime',
+    //         'password' => 'hashed',
+    //         'is_active' => 'boolean',
+    //     ];
+    // }
 
     public function addresses(): HasMany
     {
@@ -76,5 +94,18 @@ class User extends Authenticatable
     public function orders(): HasMany
     {
         return $this->hasMany(Order::class);
+    }
+    // در app/Models/User.php اضافه کن:
+    public function reviews()
+    {
+        return $this->hasMany(Review::class);
+    }
+    public function questions()
+    {
+        return $this->hasMany(ProductQuestion::class);
+    }
+    public function answers()
+    {
+        return $this->hasMany(ProductAnswer::class);
     }
 }

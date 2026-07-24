@@ -6,19 +6,9 @@ use Illuminate\Database\Eloquent\Model;
 
 class Referral extends Model
 {
-    protected $fillable = [
-        'referrer_id',
-        'referred_id',
-        'code',
-        'status',
-        'reward_amount',
-        'rewarded_at',
-    ];
+    protected $fillable = ['referrer_id', 'referred_id', 'code', 'status', 'reward_amount', 'completed_at'];
+    protected $casts = ['completed_at' => 'datetime', 'reward_amount' => 'integer'];
 
-    protected $casts = [
-        'reward_amount' => 'decimal:0',
-        'rewarded_at'   => 'datetime',
-    ];
 
     public function referrer()
     {

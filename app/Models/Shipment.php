@@ -28,23 +28,20 @@ class Shipment extends Model
         'delivered_at',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'shipping_cost' => 'decimal:0',
-            'weight' => 'decimal:3',
-            'shipping_address' => 'array',
-            'shipped_at' => 'datetime',
-            'delivered_at' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'shipping_cost'    => 'decimal:0',
+        'weight'           => 'decimal:3',
+        'shipping_address' => 'array',
+        'shipped_at'       => 'datetime',
+        'delivered_at'     => 'datetime',
+    ];
 
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class);
     }
 
-    public function method(): BelongsTo
+    public function shippingMethod(): BelongsTo
     {
         return $this->belongsTo(ShippingMethod::class, 'shipping_method_id');
     }
