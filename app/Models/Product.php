@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 
 // app/Models/Product.php
@@ -46,6 +48,11 @@ class Product extends Model
         'status',
         'is_featured',
         'published_at',
+        'external_url',
+        'button_text',
+        'download_limit',
+        'download_expiry',
+        'variation_attributes', // ← اضافه شد تا JSON ذخیره شود
     ];
 
     protected $casts = [
@@ -60,20 +67,17 @@ class Product extends Model
         'published_at'   => 'datetime',
         'weight'         => 'decimal:2',
         'rating_avg'     => 'decimal:2',
+        'variation_attributes' => 'array',
     ];
 
     public function brand()
     {
         return $this->belongsTo(Brand::class);
     }
-    public function images()
-    {
-        return $this->hasMany(ProductImage::class);
-    }
-    public function variations()
-    {
-        return $this->hasMany(ProductVariation::class);
-    }
+    // public function variations()
+    // {
+    //     return $this->hasMany(ProductVariation::class);
+    // }
     public function reviews()
     {
         return $this->hasMany(Review::class);
@@ -93,11 +97,11 @@ class Product extends Model
         return $this->belongsToMany(Tag::class, 'product_tag');
     }
 
-    public function attributes()
-    {
-        return $this->belongsToMany(Attribute::class, 'attribute_product')
-            ->withPivot('is_variation', 'is_visible', 'sort_order');
-    }
+    // public function attributes()
+    // {
+    //     return $this->belongsToMany(Attribute::class, 'attribute_product')
+    //         ->withPivot('is_variation', 'is_visible', 'sort_order');
+    // }
     public function taxClass()
     {
         return $this->belongsTo(TaxClass::class)->withDefault();
@@ -109,5 +113,69 @@ class Product extends Model
     public function seoMeta()
     {
         return $this->morphOne(SeoMeta::class, 'seoable');
+    }
+    public function images()
+    {
+        return $this->hasMany(ProductImage::class)->orderBy('sort_order');
+    }
+
+    public function primaryImage()
+    {
+        return $this->hasOne(ProductImage::class)->where('is_primary', true);
+    }
+    // app/Models/Product.php
+    public function attributes()
+    {
+        return $this->belongsToMany(Attribute::class, 'attribute_product')
+            ->withPivot(['is_variation', 'is_visible', 'sort_order']);
+    }
+
+    public function variations()
+    {
+        return $this->hasMany(ProductVariation::class);
+    }
+
+    // public function groupedChildren()
+    // {
+    //     return $this->belongsToMany(
+    //         Product::class,
+    //         'grouped_products',
+    //         'parent_id',
+    //         'child_id'
+    //     );
+    // }
+    public function downloads(): HasMany
+    {
+        return $this->hasMany(ProductDownload::class);
+    }
+
+    // محصولات فرزند (برای grouped)
+    public function groupedChildren(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Product::class,
+            'grouped_products',
+            'parent_id',
+            'child_id'
+        )
+            ->withPivot('sort_order')
+            ->withTimestamps()
+            ->orderByPivot('sort_order');
+    }
+
+    // این محصول عضو کدام گروه‌هاست (معکوس)
+    public function groupedParents(): BelongsToMany
+    {
+        return $this->belongsToMany(
+            Product::class,
+            'grouped_products',
+            'child_id',
+            'parent_id'
+        )->withTimestamps();
+    }
+
+    public function downloadablePermissions(): HasMany
+    {
+        return $this->hasMany(DownloadablePermission::class);
     }
 }

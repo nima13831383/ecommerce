@@ -45,4 +45,21 @@ class DownloadablePermission extends Model
 
         return $this->downloads_remaining === null || $this->downloads_remaining > 0;
     }
+    // منطق کمکی برای کنترل دسترسی دانلود
+    public function isExpired(): bool
+    {
+        return $this->access_expires_at !== null
+            && $this->access_expires_at->isPast();
+    }
+
+    public function hasDownloadsLeft(): bool
+    {
+        return $this->downloads_remaining === null
+            || $this->downloads_remaining > 0;
+    }
+
+    public function canDownload(): bool
+    {
+        return ! $this->isExpired() && $this->hasDownloadsLeft();
+    }
 }

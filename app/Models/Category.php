@@ -38,10 +38,16 @@ class Category extends Model
     {
         return $this->hasMany(Category::class, 'parent_id');
     }
+    // public function products()
+    // {
+    //     return $this->belongsToMany(Product::class, 'product_categories');
+    // }
     public function products()
     {
-        return $this->belongsToMany(Product::class, 'product_categories');
+        return $this->belongsToMany(Product::class, 'category_product');
     }
+
+
     public function seoMeta()
     {
         return $this->morphOne(SeoMeta::class, 'seoable');
