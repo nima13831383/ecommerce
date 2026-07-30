@@ -52,7 +52,7 @@ class Product extends Model
         'button_text',
         'download_limit',
         'download_expiry',
-        'variation_attributes', // ← اضافه شد تا JSON ذخیره شود
+        // 'variation_attributes', // ← اضافه شد تا JSON ذخیره شود
     ];
 
     protected $casts = [
@@ -67,7 +67,7 @@ class Product extends Model
         'published_at'   => 'datetime',
         'weight'         => 'decimal:2',
         'rating_avg'     => 'decimal:2',
-        'variation_attributes' => 'array',
+        // 'variation_attributes' => 'array',
     ];
 
     public function brand()
@@ -124,16 +124,16 @@ class Product extends Model
         return $this->hasOne(ProductImage::class)->where('is_primary', true);
     }
     // app/Models/Product.php
-    public function attributes()
-    {
-        return $this->belongsToMany(Attribute::class, 'attribute_product')
-            ->withPivot(['is_variation', 'is_visible', 'sort_order']);
-    }
+    // public function attributes()
+    // {
+    //     return $this->belongsToMany(Attribute::class, 'attribute_product')
+    //         ->withPivot(['is_variation', 'is_visible', 'sort_order']);
+    // }
 
-    public function variations()
-    {
-        return $this->hasMany(ProductVariation::class);
-    }
+    // public function variations()
+    // {
+    //     return $this->hasMany(ProductVariation::class);
+    // }
 
     // public function groupedChildren()
     // {
@@ -177,5 +177,34 @@ class Product extends Model
     public function downloadablePermissions(): HasMany
     {
         return $this->hasMany(DownloadablePermission::class);
+    }
+    public function attributes(): BelongsToMany
+    {
+        return $this->belongsToMany(Attribute::class, 'attribute_product')
+            ->withPivot('sort_order')
+            ->orderByPivot('sort_order');
+    }
+
+    // public function variations(): HasMany
+    // {
+    //     return $this->hasMany(ProductVariation::class);
+    // }
+    // public function attributeValues(): BelongsToMany
+    // {
+    //     return $this->belongsToMany(AttributeValue::class, 'attribute_value_product');
+    // }
+
+
+
+    /** @return HasMany<ProductVariation, $this> */
+    public function variations(): HasMany
+    {
+        return $this->hasMany(ProductVariation::class);
+    }
+
+    /** @return BelongsToMany<AttributeValue, $this> */
+    public function attributeValues(): BelongsToMany
+    {
+        return $this->belongsToMany(AttributeValue::class, 'attribute_value_product');
     }
 }

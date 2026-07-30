@@ -4,7 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
-
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 // app/Models/ProductVariation.php
 class ProductVariation extends Model
 {
@@ -83,8 +84,29 @@ class ProductVariation extends Model
     }
 
     // ── برچسب خوانا: "قرمز / L" ─────────────────────
+    // public function getLabelAttribute(): string
+    // {
+    //     return $this->attributeValues->pluck('value')->implode(' / ') ?: 'Variation';
+    // }
     public function getLabelAttribute(): string
     {
-        return $this->attributeValues->pluck('value')->implode(' / ') ?: 'Variation';
+        $this->loadMissing('attributeValues.attribute');
+
+        return $this->attributeValues
+            ->sortBy(fn($v) => $v->attribute->sort_order)
+            ->map(fn($v) => "{$v->attribute->name}: {$v->value}")
+            ->implode(' / ') ?: 'Variation';
+    }
+
+    /** @return BelongsToMany<AttributeValue, $this> */
+    // public function attributeValues(): BelongsToMany
+    // {
+    //     return $this->belongsToMany(AttributeValue::class, 'attribute_value_product_variation');
+    // }
+
+    /** @return HasMany<OrderItem, $this> */
+    public function orderItems(): HasMany
+    {
+        return $this->hasMany(OrderItem::class, 'product_variation_id');
     }
 }

@@ -430,66 +430,224 @@ class ProductForm
 
 
 
+    // protected static function variationsTab(): Tab
+    // {
+    //     return Tab::make('Variations')
+    //         ->icon(Heroicon::OutlinedAdjustmentsHorizontal)
+    //         ->visible(fn($get) => $get('type') === 'variable')
+    //         ->schema([
+
+    //             // ── Step 1: انتخاب Attributeها و Valueهای مجاز ──
+    //             Repeater::make('variation_attributes')
+    //                 ->label('Attributes')
+    //                 ->helperText('برای هر ویژگی، مقادیر مورد نظر را انتخاب کن')
+    //                 ->schema([
+    //                     Select::make('attribute_id')
+    //                         ->label('Attribute')
+    //                         ->options(fn() => Attribute::where('is_variation', 1)
+    //                             ->orderBy('name')->pluck('name', 'id'))
+    //                         ->required()->live()->distinct()
+    //                         ->disableOptionsWhenSelectedInSiblingRepeaterItems()
+    //                         ->searchable()
+    //                         // ➕ ساختن Attribute جدید همین‌جا
+    //                         ->createOptionForm([
+    //                             TextInput::make('name')
+    //                                 ->required()
+    //                                 ->live(onBlur: true)
+    //                                 ->afterStateUpdated(fn($state, callable $set) =>
+    //                                 $set('slug', Str::slug($state))),
+    //                             TextInput::make('slug')
+    //                                 ->required()
+    //                                 ->unique('attributes', 'slug'),
+    //                             Toggle::make('is_variation')
+    //                                 ->label('برای واریشن استفاده شود')
+    //                                 ->default(true),
+    //                         ])
+    //                         ->createOptionUsing(fn(array $data) =>
+    //                         Attribute::create($data)->getKey()),
+
+    //                     Select::make('value_ids')
+    //                         ->label('Values')
+    //                         ->multiple()
+    //                         ->options(fn(Get $get) => $get('attribute_id')
+    //                             ? AttributeValue::where('attribute_id', $get('attribute_id'))
+    //                             ->orderBy('sort_order')->pluck('value', 'id')
+    //                             : [])
+    //                         ->required()->live()
+    //                         ->searchable()
+    //                         // ➕ ساختن Value جدید برای همین Attribute
+    //                         ->createOptionForm([
+    //                             TextInput::make('value')
+    //                                 ->label('Value')
+    //                                 ->required()
+    //                                 ->live(onBlur: true)
+    //                                 ->afterStateUpdated(fn($state, callable $set) =>
+    //                                 $set('slug', Str::slug($state))),
+    //                             TextInput::make('slug')->required(),
+    //                             TextInput::make('sort_order')->numeric()->default(0),
+    //                         ])
+    //                         ->createOptionUsing(function (array $data, Get $get) {
+    //                             if (blank($get('attribute_id'))) {
+    //                                 Notification::make()->warning()
+    //                                     ->title('اول یک Attribute انتخاب کن')->send();
+    //                                 return null;
+    //                             }
+    //                             $data['attribute_id'] = $get('attribute_id');
+    //                             return AttributeValue::create($data)->getKey();
+    //                         }),
+    //                 ])
+    //                 ->columns(2)
+    //                 ->addActionLabel('Add attribute')
+    //                 ->columnSpanFull(),
+
+
+    //             // ── Step 2: دکمه Generate (state-based) ──
+    //             Actions::make([
+    //                 Action::make('generateVariations')
+    //                     ->label('تولید واریشن‌ها')
+    //                     ->icon('heroicon-o-sparkles')
+    //                     ->color('warning')
+    //                     ->requiresConfirmation()
+    //                     ->modalDescription('ترکیب‌های جدید اضافه می‌شوند. واریشن‌های موجود دست‌نخورده می‌مانند.')
+    //                     ->action(function (Get $get, $set) {
+    //                         $rows = collect($get('variation_attributes') ?? [])
+    //                             ->filter(fn($r) => ! empty($r['attribute_id']) && ! empty($r['value_ids']));
+
+    //                         if ($rows->isEmpty()) {
+    //                             Notification::make()->warning()
+    //                                 ->title('هیچ ویژگی معتبری انتخاب نشده')->send();
+    //                             return;
+    //                         }
+
+    //                         $sets   = $rows->map(fn($r) => $r['value_ids'])->values()->all();
+    //                         $combos = static::cartesian($sets);
+
+    //                         $existing = collect($get('variations') ?? []);
+
+    //                         // هم موجودها هم dismiss‌شده‌ها به‌عنوان «شناخته‌شده» → دوباره ساخته نمی‌شوند
+    //                         $knownKeys = $existing
+    //                             ->map(fn($v) => static::comboKey($v['attributeValues'] ?? []))
+    //                             ->all();
+
+    //                         $new = [];
+    //                         foreach ($combos as $combo) {
+    //                             if (in_array(static::comboKey($combo), $knownKeys, true)) {
+    //                                 continue; // موجود یا dismiss‌شده
+    //                             }
+    //                             $new[] = [
+    //                                 'attributeValues' => array_values($combo),
+    //                                 'sku'             => null,
+    //                                 'price'           => $get('price') ?? 0,
+    //                                 'sale_price'      => null,
+    //                                 'stock_quantity'  => 0,
+    //                                 'is_active'       => true,
+    //                                 'is_dismissed'    => false,
+    //                             ];
+    //                         }
+
+    //                         $set('variations', [...$existing->all(), ...$new]);
+
+    //                         Notification::make()->success()
+    //                             ->title(count($new) . ' واریشن جدید ساخته شد')->send();
+    //                     }),
+
+    //             ])->columnSpanFull(),
+
+    //             // ── Step 3: Repeater واریشن‌ها ──
+    //             Repeater::make('variations')
+    //                 ->relationship('variations')
+    //                 ->schema([
+    //                     Select::make('attributeValues')
+    //                         ->label('Combination')
+    //                         ->relationship('attributeValues', 'value')
+    //                         ->multiple()->preload()
+    //                         ->disabled()->dehydrated(true)
+    //                         ->columnSpanFull(),
+
+    //                     TextInput::make('sku')->maxLength(100),
+    //                     TextInput::make('price')->numeric()->required()->prefix('﷼'),
+    //                     TextInput::make('sale_price')->numeric()->prefix('﷼')->lte('price'),
+    //                     TextInput::make('stock_quantity')->label('Stock')->numeric()->default(0),
+    //                     Toggle::make('is_active')->label('Active')->default(true)->inline(false),
+
+    //                     Hidden::make('is_dismissed')->default(false),
+    //                 ])
+    //                 ->columns(3)
+    //                 ->itemLabel(function (array $state): ?string {
+    //                     $ids = $state['attributeValues'] ?? [];
+    //                     $label = empty($ids)
+    //                         ? 'New variation'
+    //                         : AttributeValue::whereIn('id', $ids)->pluck('value')->implode(' / ');
+    //                     return ($state['is_dismissed'] ?? false) ? "🚫 {$label} (dismissed)" : $label;
+    //                 })
+    //                 // آیتم‌های dismiss‌شده را جمع و مخفی نشان بده
+    //                 ->extraItemActions([
+    //                     Action::make('toggleDismiss')
+    //                         ->icon(fn(array $arguments, Repeater $component): string => ($component->getRawItemState($arguments['item'])['is_dismissed'] ?? false)
+    //                             ? 'heroicon-o-arrow-uturn-left'
+    //                             : 'heroicon-o-x-circle')
+    //                         ->color(fn(array $arguments, Repeater $component): string => ($component->getRawItemState($arguments['item'])['is_dismissed'] ?? false)
+    //                             ? 'success' : 'danger')
+    //                         ->action(function (array $arguments, Repeater $component): void {
+    //                             $statePath = $component->getStatePath();
+    //                             $key       = $arguments['item'];
+    //                             $livewire  = $component->getLivewire();
+
+    //                             $current = (bool) data_get($livewire, "{$statePath}.{$key}.is_dismissed", false);
+    //                             data_set($livewire, "{$statePath}.{$key}.is_dismissed", ! $current);
+    //                         }),
+    //                 ])
+
+    //                 ->deletable(false)   // حذف فیزیکی خاموش؛ فقط dismiss
+    //                 ->collapsible()->collapsed()
+    //                 ->columnSpanFull(),
+
+    //         ]);
+    // }
+
+
     protected static function variationsTab(): Tab
     {
         return Tab::make('Variations')
             ->icon(Heroicon::OutlinedAdjustmentsHorizontal)
-            ->visible(fn($get) => $get('type') === 'variable')
+            ->visible(fn(Get $get) => $get('type') === 'variable')
             ->schema([
 
-                // ── Step 1: انتخاب Attributeها و Valueهای مجاز ──
+                // ── Step 1: ویژگی‌ها و مقادیر (بی‌نهایت ردیف) ──
                 Repeater::make('variation_attributes')
                     ->label('Attributes')
-                    ->helperText('برای هر ویژگی، مقادیر مورد نظر را انتخاب کن')
+                    ->helperText('برای هر ویژگی، مقادیر مورد نظر را انتخاب کن. تعداد ویژگی‌ها محدودیتی ندارد.')
                     ->schema([
                         Select::make('attribute_id')
                             ->label('Attribute')
                             ->options(fn() => Attribute::where('is_variation', 1)
-                                ->orderBy('name')->pluck('name', 'id'))
-                            ->required()->live()->distinct()
+                                ->orderBy('sort_order')->orderBy('name')->pluck('name', 'id'))
+                            ->required()->live()->distinct()->searchable()
                             ->disableOptionsWhenSelectedInSiblingRepeaterItems()
-                            ->searchable()
-                            // ➕ ساختن Attribute جدید همین‌جا
                             ->createOptionForm([
-                                TextInput::make('name')
-                                    ->required()
-                                    ->live(onBlur: true)
-                                    ->afterStateUpdated(fn($state, callable $set) =>
-                                    $set('slug', Str::slug($state))),
-                                TextInput::make('slug')
-                                    ->required()
-                                    ->unique('attributes', 'slug'),
-                                Toggle::make('is_variation')
-                                    ->label('برای واریشن استفاده شود')
-                                    ->default(true),
+                                TextInput::make('name')->required()->live(onBlur: true)
+                                    ->afterStateUpdated(fn($state, callable $set) => $set('slug', Str::slug($state))),
+                                TextInput::make('slug')->required()->unique('attributes', 'slug'),
+                                Toggle::make('is_variation')->label('برای واریشن استفاده شود')->default(true),
                             ])
-                            ->createOptionUsing(fn(array $data) =>
-                            Attribute::create($data)->getKey()),
+                            ->createOptionUsing(fn(array $data) => Attribute::create($data)->getKey()),
 
                         Select::make('value_ids')
                             ->label('Values')
-                            ->multiple()
-                            ->options(fn(Get $get) => $get('attribute_id')
+                            ->multiple()->required()->live()->searchable()
+                            ->options(fn(Get $get) => filled($get('attribute_id'))
                                 ? AttributeValue::where('attribute_id', $get('attribute_id'))
                                 ->orderBy('sort_order')->pluck('value', 'id')
                                 : [])
-                            ->required()->live()
-                            ->searchable()
-                            // ➕ ساختن Value جدید برای همین Attribute
                             ->createOptionForm([
-                                TextInput::make('value')
-                                    ->label('Value')
-                                    ->required()
-                                    ->live(onBlur: true)
-                                    ->afterStateUpdated(fn($state, callable $set) =>
-                                    $set('slug', Str::slug($state))),
+                                TextInput::make('value')->required()->live(onBlur: true)
+                                    ->afterStateUpdated(fn($state, callable $set) => $set('slug', Str::slug($state))),
                                 TextInput::make('slug')->required(),
                                 TextInput::make('sort_order')->numeric()->default(0),
                             ])
                             ->createOptionUsing(function (array $data, Get $get) {
                                 if (blank($get('attribute_id'))) {
-                                    Notification::make()->warning()
-                                        ->title('اول یک Attribute انتخاب کن')->send();
+                                    Notification::make()->warning()->title('اول یک Attribute انتخاب کن')->send();
                                     return null;
                                 }
                                 $data['attribute_id'] = $get('attribute_id');
@@ -500,8 +658,7 @@ class ProductForm
                     ->addActionLabel('Add attribute')
                     ->columnSpanFull(),
 
-
-                // ── Step 2: دکمه Generate (state-based) ──
+                // ── Step 2: تولید ترکیب‌ها ──
                 Actions::make([
                     Action::make('generateVariations')
                         ->label('تولید واریشن‌ها')
@@ -514,54 +671,97 @@ class ProductForm
                                 ->filter(fn($r) => ! empty($r['attribute_id']) && ! empty($r['value_ids']));
 
                             if ($rows->isEmpty()) {
-                                Notification::make()->warning()
-                                    ->title('هیچ ویژگی معتبری انتخاب نشده')->send();
+                                Notification::make()->warning()->title('هیچ ویژگی معتبری انتخاب نشده')->send();
                                 return;
                             }
 
-                            $sets   = $rows->map(fn($r) => $r['value_ids'])->values()->all();
-                            $combos = static::cartesian($sets);
-
+                            $combos   = static::cartesian($rows->pluck('value_ids')->values()->all());
                             $existing = collect($get('variations') ?? []);
-
-                            // هم موجودها هم dismiss‌شده‌ها به‌عنوان «شناخته‌شده» → دوباره ساخته نمی‌شوند
-                            $knownKeys = $existing
-                                ->map(fn($v) => static::comboKey($v['attributeValues'] ?? []))
-                                ->all();
+                            $known    = $existing->map(fn($v) => static::comboKey($v['attribute_value_ids'] ?? ''))->all();
 
                             $new = [];
                             foreach ($combos as $combo) {
-                                if (in_array(static::comboKey($combo), $knownKeys, true)) {
-                                    continue; // موجود یا dismiss‌شده
+                                if (in_array(static::comboKey($combo), $known, true)) {
+                                    continue;
                                 }
                                 $new[] = [
-                                    'attributeValues' => array_values($combo),
-                                    'sku'             => null,
-                                    'price'           => $get('price') ?? 0,
-                                    'sale_price'      => null,
-                                    'stock_quantity'  => 0,
-                                    'is_active'       => true,
-                                    'is_dismissed'    => false,
+                                    'id'                 => null,
+                                    'attribute_value_ids' => implode(',', array_map('intval', $combo)),
+                                    'sku'                => null,
+                                    'price'              => $get('price') ?? 0,
+                                    'sale_price'         => null,
+                                    'stock_quantity'     => 0,
+                                    'is_active'          => true,
+                                    'is_dismissed'       => false,
                                 ];
                             }
 
                             $set('variations', [...$existing->all(), ...$new]);
 
-                            Notification::make()->success()
-                                ->title(count($new) . ' واریشن جدید ساخته شد')->send();
+                            Notification::make()->success()->title(count($new) . ' واریشن جدید ساخته شد')->send();
+                        }),
+                    Action::make('addVariationManually')
+                        ->label('افزودن واریشن دستی')
+                        ->icon('heroicon-o-plus')
+                        ->color('gray')
+                        ->schema(function (Get $get): array {
+                            $rows = collect($get('variation_attributes') ?? [])
+                                ->filter(fn($r) => ! empty($r['attribute_id']) && ! empty($r['value_ids']));
+
+                            return $rows->map(function (array $row) {
+                                $attribute = Attribute::find($row['attribute_id']);
+
+                                return Select::make("attr_{$row['attribute_id']}")
+                                    ->label($attribute?->name ?? 'Attribute')
+                                    ->options(AttributeValue::whereIn('id', $row['value_ids'])
+                                        ->orderBy('sort_order')->pluck('value', 'id'))
+                                    ->required()
+                                    ->native(false);
+                            })->values()->all();
+                        })
+                        ->action(function (array $data, Get $get, $set) {
+                            $valueIds = array_values(array_filter(array_map('intval', $data)));
+
+                            if (empty($valueIds)) {
+                                Notification::make()->warning()->title('اول در بخش Attributes ویژگی و مقدار انتخاب کن')->send();
+                                return;
+                            }
+
+                            $existing = collect($get('variations') ?? []);
+                            $key      = static::comboKey($valueIds);
+
+                            if ($existing->contains(fn($v) => static::comboKey($v['attribute_value_ids'] ?? '') === $key)) {
+                                Notification::make()->warning()->title('این ترکیب از قبل وجود دارد')->send();
+                                return;
+                            }
+
+                            $set('variations', [...$existing->all(), [
+                                'id'                  => null,
+                                'attribute_value_ids' => implode(',', $valueIds),
+                                'sku'                 => null,
+                                'price'               => $get('price') ?? 0,
+                                'sale_price'          => null,
+                                'stock_quantity'      => 0,
+                                'is_active'           => true,
+                                'is_dismissed'        => false,
+                            ]]);
+
+                            Notification::make()->success()->title('واریشن اضافه شد')->send();
                         }),
 
                 ])->columnSpanFull(),
 
-                // ── Step 3: Repeater واریشن‌ها ──
+                // ── Step 3: واریشن‌ها (بدون relationship؛ ذخیره دستی در trait) ──
                 Repeater::make('variations')
-                    ->relationship('variations')
+                    ->label('Variations')
                     ->schema([
-                        Select::make('attributeValues')
-                            ->label('Combination')
-                            ->relationship('attributeValues', 'value')
-                            ->multiple()->preload()
-                            ->disabled()->dehydrated(true)
+                        Hidden::make('id'),
+                        Hidden::make('attribute_value_ids'),   // "12,45" → منبع ترکیب
+                        Hidden::make('is_dismissed')->default(false),
+
+                        Placeholder::make('combination')
+                            ->label('ترکیب')
+                            ->content(fn(Get $get) => static::comboLabel($get('attribute_value_ids')))
                             ->columnSpanFull(),
 
                         TextInput::make('sku')->maxLength(100),
@@ -569,41 +769,33 @@ class ProductForm
                         TextInput::make('sale_price')->numeric()->prefix('﷼')->lte('price'),
                         TextInput::make('stock_quantity')->label('Stock')->numeric()->default(0),
                         Toggle::make('is_active')->label('Active')->default(true)->inline(false),
-
-                        Hidden::make('is_dismissed')->default(false),
                     ])
                     ->columns(3)
-                    ->itemLabel(function (array $state): ?string {
-                        $ids = $state['attributeValues'] ?? [];
-                        $label = empty($ids)
-                            ? 'New variation'
-                            : AttributeValue::whereIn('id', $ids)->pluck('value')->implode(' / ');
+                    ->itemLabel(function (array $state): string {
+                        $label = static::comboLabel($state['attribute_value_ids'] ?? '');
                         return ($state['is_dismissed'] ?? false) ? "🚫 {$label} (dismissed)" : $label;
                     })
-                    // آیتم‌های dismiss‌شده را جمع و مخفی نشان بده
                     ->extraItemActions([
                         Action::make('toggleDismiss')
                             ->icon(fn(array $arguments, Repeater $component): string => ($component->getRawItemState($arguments['item'])['is_dismissed'] ?? false)
-                                ? 'heroicon-o-arrow-uturn-left'
-                                : 'heroicon-o-x-circle')
+                                ? 'heroicon-o-arrow-uturn-left' : 'heroicon-o-x-circle')
                             ->color(fn(array $arguments, Repeater $component): string => ($component->getRawItemState($arguments['item'])['is_dismissed'] ?? false)
                                 ? 'success' : 'danger')
                             ->action(function (array $arguments, Repeater $component): void {
-                                $statePath = $component->getStatePath();
-                                $key       = $arguments['item'];
-                                $livewire  = $component->getLivewire();
-
-                                $current = (bool) data_get($livewire, "{$statePath}.{$key}.is_dismissed", false);
-                                data_set($livewire, "{$statePath}.{$key}.is_dismissed", ! $current);
+                                $path     = $component->getStatePath();
+                                $key      = $arguments['item'];
+                                $livewire = $component->getLivewire();
+                                $current  = (bool) data_get($livewire, "{$path}.{$key}.is_dismissed", false);
+                                data_set($livewire, "{$path}.{$key}.is_dismissed", ! $current);
                             }),
                     ])
-
-                    ->deletable(false)   // حذف فیزیکی خاموش؛ فقط dismiss
+                    ->deletable(true)
+                    ->addable(false)   // افزودن فقط از طریق دو اکشن بالا
                     ->collapsible()->collapsed()
                     ->columnSpanFull(),
-
             ]);
     }
+
 
 
     protected static function associationsTab(): Tab
@@ -728,12 +920,54 @@ class ProductForm
     }
 
     /** کلید یکتا مستقل از ترتیب */
-    protected static function comboKey(array $valueIds): string
+    // protected static function comboKey(array $valueIds): string
+    // {
+    //     $ids = array_map('intval', array_values($valueIds));
+    //     sort($ids);
+    //     return implode('|', $ids);
+    // }
+
+
+    protected static array $valueLabelCache = [];
+
+    protected static function comboLabel(string|array|null $ids): string
     {
-        $ids = array_map('intval', array_values($valueIds));
+        $ids = static::normalizeIds($ids);
+        if (empty($ids)) {
+            return 'New variation';
+        }
+
+        $missing = array_diff($ids, array_keys(static::$valueLabelCache));
+        if ($missing) {
+            AttributeValue::with('attribute')->whereIn('id', $missing)->get()
+                ->each(fn($v) => static::$valueLabelCache[$v->id] = [
+                    'label' => "{$v->attribute->name}: {$v->value}",
+                    'order' => $v->attribute->sort_order,
+                ]);
+        }
+
+        return collect($ids)
+            ->map(fn($id) => static::$valueLabelCache[$id] ?? null)
+            ->filter()
+            ->sortBy('order')
+            ->pluck('label')
+            ->implode(' / ');
+    }
+
+    /** @return array<int> */
+    public static function normalizeIds(string|array|null $ids): array
+    {
+        $raw = is_array($ids) ? $ids : explode(',', (string) $ids);
+        return array_values(array_filter(array_map('intval', $raw)));
+    }
+
+    protected static function comboKey(string|array|null $ids): string
+    {
+        $ids = static::normalizeIds($ids);
         sort($ids);
         return implode('|', $ids);
     }
+
 
 
     /**
