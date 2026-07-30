@@ -109,4 +109,34 @@ class ProductVariation extends Model
     {
         return $this->hasMany(OrderItem::class, 'product_variation_id');
     }
+    // app/Models/ProductVariation.php
+    // protected static function booted(): void
+    // {
+    //     static::saving(function (self $variation): void {
+    //         if ($variation->manage_stock) {
+    //             $variation->stock_status = $variation->stock_quantity > 0
+    //                 ? ($variation->stock_status === 'on_backorder' ? 'on_backorder' : 'in_stock')
+    //                 : 'out_of_stock';
+    //         }
+    //     });
+    // }
+    protected static function booted(): void
+    {
+        static::saving(function (self $variation): void {
+            if (! $variation->manage_stock) {
+                return;
+            }
+
+            if ($variation->stock_quantity > 0) {
+                // on_backorder را دست‌نخورده بگذار، تصمیم دستی ادمین است
+                if ($variation->stock_status !== 'on_backorder') {
+                    $variation->stock_status = 'in_stock';
+                }
+
+                return;
+            }
+
+            $variation->stock_status = 'out_of_stock';
+        });
+    }
 }
