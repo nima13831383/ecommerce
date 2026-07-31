@@ -1,47 +1,34 @@
 <?php
 
-namespace App\Filament\Resources\Categories\Tables;
+namespace App\Filament\Resources\Brands\Tables;
 
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
-use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\ForceDeleteBulkAction;
-use Filament\Actions\RestoreAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Columns\ToggleColumn;
-use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
-
-class CategoriesTable
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\RestoreAction;
+class BrandsTable
 {
     public static function configure(Table $table): Table
     {
         return $table
+            ->defaultSort('sort_order')
+            ->reorderable('sort_order')
             ->columns([
-                ImageColumn::make('image')
-                    ->label('تصویر')
-                    ->circular()
-                    ->disk('public'),
+                ImageColumn::make('logo')->label('لوگو')->disk('public')->circular(),
 
-                TextColumn::make('name')
-                    ->label('نام')
-                    ->searchable()
-                    ->sortable(),
+                TextColumn::make('name')->label('نام')->searchable()->sortable(),
 
-                TextColumn::make('parent.name')
-                    ->label('والد')
-                    ->placeholder('—')
-                    ->sortable(),
-
-                TextColumn::make('slug')
-                    ->label('نامک')
-                    ->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('slug')->label('نامک')->searchable()->toggleable(isToggledHiddenByDefault: true),
 
                 TextColumn::make('products_count')
                     ->label('محصولات')
@@ -51,21 +38,15 @@ class CategoriesTable
 
                 ToggleColumn::make('is_active')->label('فعال'),
                 ToggleColumn::make('is_featured')->label('ویژه'),
-                ToggleColumn::make('is_hidden')->label('مخفی'),
 
-                TextColumn::make('sort_order')
-                    ->label('ترتیب')
-                    ->sortable(),
+                TextColumn::make('sort_order')->label('ترتیب')->sortable(),
+
+                TextColumn::make('created_at')->label('ایجاد')->dateTime()->sortable()
+                    ->toggleable(isToggledHiddenByDefault: true),
             ])
-            ->defaultSort('sort_order')
             ->filters([
-                SelectFilter::make('parent_id')
-                    ->label('والد')
-                    ->relationship('parent', 'name')
-                    ->searchable()
-                    ->preload(),
-
                 TernaryFilter::make('is_active')->label('فعال'),
+                TernaryFilter::make('is_featured')->label('ویژه'),
                 TrashedFilter::make(),
             ])
             ->recordActions([
@@ -77,8 +58,8 @@ class CategoriesTable
             ->toolbarActions([
                 BulkActionGroup::make([
                     DeleteBulkAction::make(),
-                    RestoreBulkAction::make(),
                     ForceDeleteBulkAction::make(),
+                    RestoreBulkAction::make(),
                 ]),
             ]);
     }

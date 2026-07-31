@@ -14,7 +14,8 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
-
+use Filament\Actions\ForceDeleteAction;
+use Filament\Actions\RestoreAction;
 class ProductsTable
 {
     public static function configure(Table $table): Table
@@ -98,6 +99,8 @@ class ProductsTable
             ->recordActions([
                 EditAction::make(),
                 DeleteAction::make(),
+                RestoreAction::make(),
+                ForceDeleteAction::make(),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([

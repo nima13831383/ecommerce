@@ -26,8 +26,17 @@ use App\Filament\Resources\Products\Concerns\ConfiguresProductVariations;
 class EditProduct extends EditRecord
 {
     use ConfiguresProductVariations;
+
     protected static string $resource = ProductResource::class;
 
+        protected function getHeaderActions(): array
+        {
+            return [
+                DeleteAction::make(),
+                ForceDeleteAction::make(),
+                RestoreAction::make(),
+            ];
+        }
     protected function mutateFormDataBeforeFill(array $data): array
     {
         return $this->hydrateVariationState($data, $this->record);
