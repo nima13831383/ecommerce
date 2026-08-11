@@ -4,6 +4,8 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Models\Coupon;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Category extends Model
 {
@@ -51,5 +53,12 @@ class Category extends Model
     public function seoMeta()
     {
         return $this->morphOne(SeoMeta::class, 'seoable');
+    }
+
+
+    public function coupons(): BelongsToMany
+    {
+        return $this->belongsToMany(Coupon::class, 'coupon_category')
+            ->withPivot('is_excluded');
     }
 }

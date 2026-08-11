@@ -207,4 +207,9 @@ class Product extends Model
     {
         return $this->belongsToMany(AttributeValue::class, 'attribute_value_product');
     }
+    public function coupons(): BelongsToMany
+    {
+        return $this->belongsToMany(Coupon::class)
+            ->withPivot('is_excluded');
+    }
 }

@@ -108,4 +108,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(ProductAnswer::class);
     }
+    // app/Models/User.php
+    public function coupons()
+    {
+        return $this->belongsToMany(Coupon::class, 'coupon_user');
+    }
 }

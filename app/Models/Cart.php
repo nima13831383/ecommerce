@@ -51,4 +51,11 @@ class Cart extends Model
     {
         return (int) $this->items->sum(fn($i) => $i->unit_price * $i->quantity);
     }
+    // app/Models/Cart.php
+    public function coupons()
+    {
+        return $this->belongsToMany(Coupon::class, 'cart_coupon')
+            ->withPivot(['discount_amount', 'sort_order'])
+            ->orderByPivot('sort_order');
+    }
 }

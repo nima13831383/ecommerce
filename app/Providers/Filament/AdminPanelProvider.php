@@ -2,12 +2,13 @@
 
 namespace App\Providers\Filament;
 
-use Filament\Navigation\NavigationItem;
 use App\Filament\Resources\Products\ProductResource;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationGroup;      // ← افزوده شد
+use Filament\Navigation\NavigationItem;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
 use Filament\PanelProvider;
@@ -43,6 +44,24 @@ class AdminPanelProvider extends PanelProvider
                 AccountWidget::class,
                 FilamentInfoWidget::class,
             ])
+            ->navigationGroups([
+                NavigationGroup::make('Products')
+                // ->icon('heroicon-o-shopping-bag')
+                ,
+                NavigationGroup::make('Marketing')
+                    // ->icon('heroicon-o-megaphone')
+                    ->collapsible(),
+            ])
+            ->navigationItems([
+                NavigationItem::make('Add Product')
+                    ->group('Products')
+                    ->icon('heroicon-o-plus-circle')
+                    ->sort(2)
+                    ->url(fn(): string => ProductResource::getUrl('create'))
+                    ->isActiveWhen(fn(): bool => request()->routeIs(
+                        ProductResource::getRouteBaseName() . '.create'
+                    )),
+            ])
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -56,16 +75,6 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
-            ])
-            ->navigationItems([
-                NavigationItem::make('Add Product')
-                    ->group('Products')
-                    ->icon('heroicon-o-plus-circle')
-                    ->sort(2)
-                    ->url(fn(): string => ProductResource::getUrl('create'))
-                    ->isActiveWhen(fn(): bool => request()->routeIs(
-                        ProductResource::getRouteBaseName() . '.create'
-                    )),
             ]);
     }
 }

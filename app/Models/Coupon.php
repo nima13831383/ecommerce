@@ -2,9 +2,12 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Support\Collection;
 
-// app/Models/Coupon.php
 class Coupon extends Model
 {
     protected $fillable = [
@@ -12,7 +15,7 @@ class Coupon extends Model
         'description',
         'type',
         'amount',
-        'free_shipping',
+        'free_shipping',                 // ← مطابق ecommerce_5.pdf ص۲۳
         'min_spend',
         'max_spend',
         'max_discount',
@@ -26,56 +29,213 @@ class Coupon extends Model
         'expires_at',
     ];
 
-    protected $casts = [
-        'amount'              => 'decimal:0',
-        'min_spend'           => 'decimal:0',
-        'max_spend'           => 'decimal:0',
-        'max_discount'        => 'decimal:0',
-        'free_shipping'       => 'boolean',
-        'individual_use_only' => 'boolean',
-        'exclude_sale_items'  => 'boolean',
-        'is_active'           => 'boolean',
-        'starts_at'           => 'datetime',
-        'expires_at'          => 'datetime',
-    ];
+    protected function casts(): array
+    {
+        return [
+            'amount'              => 'decimal:0',
+            'min_spend'           => 'decimal:0',
+            'max_spend'           => 'decimal:0',
+            'max_discount'        => 'decimal:0',
+            'free_shipping'       => 'boolean',
+            'individual_use_only' => 'boolean',
+            'exclude_sale_items'  => 'boolean',
+            'is_active'           => 'boolean',
+            'starts_at'           => 'datetime',
+            'expires_at'          => 'datetime',
+        ];
+    }
 
-    public function usages()
+    /* ================= روابط پایه ================= */
+
+    public function usages(): HasMany
     {
         return $this->hasMany(CouponUsage::class);
     }
 
-    public function includedProducts()
+    public function products(): BelongsToMany
     {
         return $this->belongsToMany(Product::class, 'coupon_product')
-            ->wherePivot('is_excluded', false);
+            ->withPivot('is_excluded');
     }
 
-    public function excludedProducts()
-    {
-        return $this->belongsToMany(Product::class, 'coupon_product')
-            ->wherePivot('is_excluded', true);
-    }
-
-    public function includedCategories()
+    public function categories(): BelongsToMany
     {
         return $this->belongsToMany(Category::class, 'coupon_category')
-            ->wherePivot('is_excluded', false);
+            ->withPivot('is_excluded');
     }
 
-    public function excludedCategories()
+    public function users(): BelongsToMany
     {
-        return $this->belongsToMany(Category::class, 'coupon_category')
-            ->wherePivot('is_excluded', true);
+        return $this->belongsToMany(User::class, 'coupon_user')
+            ->withPivot('is_excluded');
     }
 
-    // اسکوپ کوپن‌های معتبر در بازه زمانی و فعال
-    public function scopeUsable($query)
+    /* ================= میان‌برهای شامل/استثنا ================= */
+
+    public function includedProducts(): BelongsToMany
+    {
+        return $this->products()->wherePivot('is_excluded', false);
+    }
+
+    public function excludedProducts(): BelongsToMany
+    {
+        return $this->products()->wherePivot('is_excluded', true);
+    }
+
+    public function includedCategories(): BelongsToMany
+    {
+        return $this->categories()->wherePivot('is_excluded', false);
+    }
+
+    public function excludedCategories(): BelongsToMany
+    {
+        return $this->categories()->wherePivot('is_excluded', true);
+    }
+
+    public function includedUsers(): BelongsToMany
+    {
+        return $this->users()->wherePivot('is_excluded', false);
+    }
+
+    public function excludedUsers(): BelongsToMany
+    {
+        return $this->users()->wherePivot('is_excluded', true);
+    }
+
+    /* ================= هستهٔ منطق «شامل/استثنا» ================= */
+
+    /**
+     * قاعدهٔ عمومی (همان رفتار ووکامرس):
+     *  - included خالی و excluded خالی  → همه مجازند
+     *  - included پر                    → فقط اعضای included (excluded نادیده گرفته نمی‌شود؛ برای امنیت باز هم چک می‌شود)
+     *  - included خالی و excluded پر    → همه به‌جز excluded
+     */
+    protected function matchesRule(array $includedIds, array $excludedIds, array $candidateIds): bool
+    {
+        if ($includedIds !== []) {
+            // باید حداقل یکی از موارد انتخابی در لیست شامل باشد
+            return array_intersect($candidateIds, $includedIds) !== [];
+        }
+
+        if ($excludedIds !== []) {
+            // همه به‌جز موارد استثنا؛ حداقل یک مورد خارج از استثنا لازم است
+            return array_diff($candidateIds, $excludedIds) !== [];
+        }
+
+        return true; // هیچ محدودیتی تعریف نشده
+    }
+
+    /* ---------- محصولات ---------- */
+
+    public function appliesToProduct(Product $product): bool
+    {
+        $included = $this->includedProducts->pluck('id')->all();
+        $excluded = $this->excludedProducts->pluck('id')->all();
+
+        // 1) اگر محصول صراحتاً استثنا شده → رد
+        if (in_array($product->id, $excluded, true)) {
+            return false;
+        }
+
+        // 2) اگر لیست شامل پر است → باید داخلش باشد
+        if ($included !== [] && ! in_array($product->id, $included, true)) {
+            return false;
+        }
+
+        // 3) بررسی دسته‌بندی‌ها
+        return $this->appliesToCategories($product->categories->pluck('id')->all());
+    }
+
+    /* ---------- دسته‌بندی‌ها ---------- */
+
+    public function appliesToCategories(array $categoryIds): bool
+    {
+        $included = $this->includedCategories->pluck('id')->all();
+        $excluded = $this->excludedCategories->pluck('id')->all();
+
+        // اگر محصول در هر یک از دسته‌های استثنا باشد → رد
+        if ($excluded !== [] && array_intersect($categoryIds, $excluded) !== []) {
+            return false;
+        }
+
+        if ($included !== [] && array_intersect($categoryIds, $included) === []) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /* ---------- کاربران ---------- */
+
+    public function appliesToUser(?User $user): bool
+    {
+        $included = $this->includedUsers->pluck('id')->all();
+        $excluded = $this->excludedUsers->pluck('id')->all();
+
+        if ($included === [] && $excluded === []) {
+            return true;               // عمومی
+        }
+
+        if ($user === null) {
+            return false;              // کوپن محدود است ولی کاربر مهمان است
+        }
+
+        if (in_array($user->id, $excluded, true)) {
+            return false;
+        }
+
+        if ($included !== [] && ! in_array($user->id, $included, true)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /** فیلتر کردن مجموعهٔ محصولات سبد به آن‌هایی که کوپن رویشان اعمال می‌شود */
+    public function filterEligibleProducts(Collection $products): Collection
+    {
+        return $products->filter(fn(Product $p) => $this->appliesToProduct($p))->values();
+    }
+
+    /* ================= اسکوپ‌ها ================= */
+
+    public function scopeUsable(Builder $query): Builder
     {
         $now = now();
-        return $query->where('is_active', true)
-            ->where(fn($q) => $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now))
-            ->where(fn($q) => $q->whereNull('expires_at')->orWhere('expires_at', '>=', $now));
+
+        return $query
+            ->where('is_active', true)
+            ->where(fn(Builder $q) => $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now))
+            ->where(fn(Builder $q) => $q->whereNull('expires_at')->orWhere('expires_at', '>=', $now))
+            ->where(fn(Builder $q) => $q->whereNull('usage_limit')
+                ->orWhereColumn('usage_count', '<', 'usage_limit'));
     }
+
+    /**
+     * کوپن‌های در دسترس یک کاربر با در نظر گرفتن included/excluded users.
+     */
+    public function scopeAvailableFor(Builder $query, ?int $userId): Builder
+    {
+        return $query
+            // کاربر نباید در لیست استثنا باشد
+            ->when($userId !== null, fn(Builder $q) => $q->whereDoesntHave(
+                'users',
+                fn(Builder $u) => $u->whereKey($userId)->wherePivot('is_excluded', true)
+            ))
+            // یا لیست شامل خالی است، یا کاربر در آن هست
+            ->where(function (Builder $q) use ($userId) {
+                $q->whereDoesntHave('users', fn(Builder $u) => $u->wherePivot('is_excluded', false));
+
+                if ($userId !== null) {
+                    $q->orWhereHas(
+                        'users',
+                        fn(Builder $u) => $u->whereKey($userId)->wherePivot('is_excluded', false)
+                    );
+                }
+            });
+    }
+
+    /* ================= کمک‌متدها ================= */
 
     public function hasReachedLimit(): bool
     {
@@ -85,5 +245,16 @@ class Coupon extends Model
     public function userUsageCount(int $userId): int
     {
         return $this->usages()->where('user_id', $userId)->count();
+    }
+
+    public function hasUserReachedLimit(int $userId): bool
+    {
+        return $this->usage_limit_per_user !== null
+            && $this->userUsageCount($userId) >= $this->usage_limit_per_user;
+    }
+
+    public function isRestrictedToUsers(): bool
+    {
+        return $this->includedUsers()->exists();
     }
 }
