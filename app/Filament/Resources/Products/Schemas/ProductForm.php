@@ -28,6 +28,11 @@ use App\Models\Category;
 use App\Models\Tag;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Validation\Rules\Unique;
+// app/Filament/Resources/Products/Schemas/ProductForm.php
+use App\Enums\TaxType;
+use App\Models\TaxClass;
+
+use Illuminate\Database\Eloquent\Builder;
 
 class ProductForm
 {
@@ -484,6 +489,56 @@ class ProductForm
                     ->editOptionForm(self::tagFormSchema())
                     ->createOptionModalHeading('تگ جدید')
                     ->columnSpanFull(),
+
+
+
+                Select::make('tax_class_id')
+                    ->label('کلاس مالیاتی')
+                    ->relationship(
+                        name: 'taxClass',
+                        titleAttribute: 'name',
+                        modifyQueryUsing: fn(Builder $query) => $query->where('is_active', true),
+                    )
+                    ->getOptionLabelFromRecordUsing(fn(TaxClass $record): string => sprintf(
+                        '%s (%s)',
+                        $record->name,
+                        TaxType::parse($record->type) === TaxType::Percent
+                            ? rtrim(rtrim((string) $record->value, '0'), '.') . '%'
+                            : number_format((float) $record->value) . ' ریال',
+                    ))
+                    ->default(fn(): ?int => TaxClass::query()
+                        ->where('is_default', true)
+                        ->where('is_active', true)
+                        ->value('id'))
+                    ->searchable()
+                    ->preload()
+                    ->native(false)
+                    ->nullable()
+                    ->helperText('خالی بگذارید تا مالیات از تنظیمات سراسری فروشگاه محاسبه شود.')
+                    ->createOptionForm([
+                        TextInput::make('name')->label('نام')->required()->maxLength(255),
+                        Select::make('type')
+                            ->label('نوع')
+                            ->options(TaxType::class)
+                            ->default(TaxType::Percent)
+                            ->required()
+                            ->native(false)
+                            ->live(),
+                        TextInput::make('value')
+                            ->label('نرخ')
+                            ->numeric()
+                            ->required()
+                            ->minValue(0)
+                            ->maxValue(fn(Get $get): ?int => TaxType::parse($get('type')) === TaxType::Percent ? 100 : null)
+                            ->suffix(fn(Get $get): ?string => TaxType::parse($get('type'))?->affix()),
+                        Toggle::make('is_active')->label('فعال')->default(true),
+                    ])
+                    ->createOptionUsing(function (array $data): int {
+                        $data['slug'] = str($data['name'])->slug()->value();
+
+                        return TaxClass::create($data)->getKey();
+                    }),
+
             ])
             ->columns(2);
     }

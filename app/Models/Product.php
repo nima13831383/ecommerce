@@ -6,7 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-
+use App\Models\Setting;
 
 // app/Models/Product.php
 class Product extends Model
@@ -102,10 +102,6 @@ class Product extends Model
     //     return $this->belongsToMany(Attribute::class, 'attribute_product')
     //         ->withPivot('is_variation', 'is_visible', 'sort_order');
     // }
-    public function taxClass()
-    {
-        return $this->belongsTo(TaxClass::class)->withDefault();
-    }
 
 
 
@@ -211,5 +207,20 @@ class Product extends Model
     {
         return $this->belongsToMany(Coupon::class)
             ->withPivot('is_excluded');
+    }
+    // app/Models/Product.php
+    public function taxClass(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(TaxClass::class);
+    }
+    public function getEffectiveTaxClass(): ?TaxClass
+    {
+        if ($this->taxClass) {
+            return $this->taxClass;
+        }
+
+        $id = Setting::getValue('default_tax_class_id', 'tax');
+
+        return $id ? TaxClass::find((int) $id) : null;
     }
 }

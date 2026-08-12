@@ -2,49 +2,35 @@
 
 namespace App\Models;
 
+use App\Enums\TaxType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\HasMany;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-// app/Models/TaxClass.php
 class TaxClass extends Model
 {
-    protected $fillable = ['name', 'slug', 'is_default'];
-    protected $casts = ['is_default' => 'boolean'];
+    protected $fillable = [
+        'name',
+        'slug',
+        'description',
+        'type',
+        'value',
+        'is_default',
+        'is_active',
+    ];
 
-    public function rates(): HasMany
+
+    protected function casts(): array
     {
-        return $this->hasMany(TaxRate::class);
+        return [
+            'type' => TaxType::class,
+            'value' => 'decimal:2',
+            'is_active' => 'boolean',
+            'is_default' => 'boolean',
+        ];
     }
 
-    public function products(): HasMany
+    public function products(): \Illuminate\Database\Eloquent\Relations\HasMany
     {
         return $this->hasMany(Product::class);
-    }
-}
-
-// a pp/Models/TaxRate.php
-class TaxRate extends Model
-{
-    protected $fillable = [
-        'tax_class_id',
-        'country',
-        'state',
-        'city',
-        'name',
-        'rate',
-        'compound',
-        'shipping_taxable',
-        'priority',
-    ];
-    protected $casts = [
-        'rate'             => 'decimal:3',
-        'compound'         => 'boolean',
-        'shipping_taxable' => 'boolean',
-    ];
-
-    public function taxClass(): BelongsTo
-    {
-        return $this->belongsTo(TaxClass::class);
     }
 }

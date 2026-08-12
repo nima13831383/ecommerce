@@ -21,6 +21,7 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use App\Enums\NavigationGroup as Group;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -49,6 +50,9 @@ class AdminPanelProvider extends PanelProvider
                 // ->icon('heroicon-o-shopping-bag')
                 ,
                 NavigationGroup::make('Marketing')
+                    // ->icon('heroicon-o-megaphone')
+                    ->collapsible(),
+                NavigationGroup::make('site-settings')
                     // ->icon('heroicon-o-megaphone')
                     ->collapsible(),
             ])

@@ -16,11 +16,13 @@ use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\RestoreAction;
+use Illuminate\Database\Eloquent\Builder;
+
 class ProductsTable
 {
     public static function configure(Table $table): Table
     {
-        return $table
+        return $table->modifyQueryUsing(fn(Builder $query) => $query->with(['brand', 'taxClass']))
             ->columns([
                 TextColumn::make('name')
                     ->searchable()
@@ -64,6 +66,16 @@ class ProductsTable
                         default     => 'gray',
                     }),
 
+
+                TextColumn::make('taxClass.name')
+                    ->label('کلاس مالیاتی')
+                    ->badge()
+                    ->placeholder('سراسری')
+                    ->toggleable(isToggledHiddenByDefault: true),
+
+
+
+
                 IconColumn::make('is_featured')
                     ->boolean()
                     ->toggleable(),
@@ -89,6 +101,12 @@ class ProductsTable
                         'pending'   => 'Pending',
                         'private'   => 'Private',
                     ]),
+                SelectFilter::make('tax_class_id')
+                    ->label('کلاس مالیاتی')
+                    ->relationship('taxClass', 'name')
+                    ->preload(),
+
+
                 SelectFilter::make('brand')
                     ->relationship('brand', 'name')
                     ->searchable()
