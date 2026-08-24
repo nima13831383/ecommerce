@@ -2,17 +2,15 @@
 
 namespace App\Filament\Resources\Products\Pages;
 
+use App\Filament\Resources\Concerns\ConfiguresProductVariations;
 use App\Filament\Resources\Products\ProductResource;
-use Filament\Resources\Pages\CreateRecord;
-
 // class CreateProduct extends CreateRecord
 // {
 //     protected static string $resource = ProductResource::class;
 // }
 
-
 // CreateProduct.php
-use App\Filament\Resources\Products\Concerns\ConfiguresProductVariations;
+use Filament\Resources\Pages\CreateRecord;
 
 class CreateProduct extends CreateRecord
 {
@@ -27,6 +25,7 @@ class CreateProduct extends CreateRecord
 
     protected function afterCreate(): void
     {
+        $this->persistProductInventory($this->record, true);
         $this->persistVariations($this->record);
     }
 }

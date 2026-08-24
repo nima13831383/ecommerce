@@ -21,7 +21,6 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
-use App\Enums\NavigationGroup as Group;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -61,9 +60,10 @@ class AdminPanelProvider extends PanelProvider
                     ->group('Products')
                     ->icon('heroicon-o-plus-circle')
                     ->sort(2)
-                    ->url(fn(): string => ProductResource::getUrl('create'))
-                    ->isActiveWhen(fn(): bool => request()->routeIs(
-                        ProductResource::getRouteBaseName() . '.create'
+                    ->url(fn (): string => ProductResource::getUrl('create'))
+                    ->visible(fn (): bool => ProductResource::canCreate())
+                    ->isActiveWhen(fn (): bool => request()->routeIs(
+                        ProductResource::getRouteBaseName().'.create'
                     )),
             ])
             ->middleware([

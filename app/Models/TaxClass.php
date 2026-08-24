@@ -18,18 +18,17 @@ class TaxClass extends Model
         'is_active',
     ];
 
-
     protected function casts(): array
     {
         return [
             'type' => TaxType::class,
-            'value' => 'decimal:2',
+            'value' => 'decimal:3',
             'is_active' => 'boolean',
             'is_default' => 'boolean',
         ];
     }
 
-    public function products(): \Illuminate\Database\Eloquent\Relations\HasMany
+    public function products(): HasMany
     {
         return $this->hasMany(Product::class);
     }

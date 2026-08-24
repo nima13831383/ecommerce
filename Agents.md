@@ -1,978 +1,1249 @@
 # AGENTS.md
 
-## Project Goal
+## Project Overview
 
-هدف این تسک پیاده‌سازی مستقل سیستم **محاسبه هزینه ارسال مرسوله پستی** در پروژه Laravel موجود است.
+This repository is a Laravel-based e-commerce platform with an integrated blog.
 
-منبع اصلی برای استخراج منطق، داده‌ها و فرمول‌های محاسبه:
+The project is intended to grow into a large-scale production system, so all implementation decisions must consider:
 
-1. یک افزونه WordPress که بعداً مسیر آن مشخص خواهد شد.
-2. فایل PDF نرخ‌نامه پستی که بعداً مسیر آن مشخص خواهد شد.
+* scalability
+* maintainability
+* horizontal scaling
+* load balancing
+* background processing
+* caching
+* cache invalidation
+* queues
+* scheduled tasks
+* event-driven architecture
+* observability
+* data consistency
+* failure recovery
 
-پیاده‌سازی Laravel باید با مهندسی معکوس این دو منبع انجام شود.
+Do not treat this project as a small CRUD application.
 
-در این مرحله سیستم فقط برای **تست و بررسی صحت محاسبات** ساخته می‌شود و نباید به Checkout، Cart، Order، Product یا سایر بخش‌های عملیاتی فروشگاه متصل شود.
+The current main development priority is the **Admin Panel**, implemented with **Filament**.
 
----
+The storefront/frontend will be implemented later using **Laravel Blade with SSR**.
 
-# Scope
-
-فقط دو سرویس پستی زیر باید پشتیبانی شوند:
-
-* پست پیشتاز
-* پست ویژه
-
-سایر روش‌های ارسال موجود در افزونه WordPress یا نرخ‌نامه نباید پیاده‌سازی شوند، مگر اینکه صراحتاً در درخواست بعدی گفته شود.
-
----
-
-# Critical Rule: Do Not Guess Shipping Logic
-
-هیچ فرمول، نرخ، ضریب، محدوده وزنی، هزینه اضافی، مالیات، بیمه، بسته‌بندی یا قانون ارسال نباید بر اساس حدس یا دانش عمومی پیاده‌سازی شود.
-
-Source of Truth فقط این موارد هستند:
-
-* WordPress plugin
-* PDF tariff/rate document
-
-اگر بین PDF و افزونه تفاوت وجود داشت:
-
-1. تفاوت را شناسایی کن.
-2. مشخص کن افزونه دقیقاً چه کاری انجام می‌دهد.
-3. مشخص کن PDF چه قانونی تعیین کرده است.
-4. قبل از تغییر رفتار نسبت به افزونه، اختلاف را گزارش کن.
-5. در صورت نبود دستور دیگر، رفتار اجرایی افزونه را برای محاسبه نهایی بازسازی کن، اما نرخ‌ها و قوانین PDF را نیز بررسی کن.
+Do not spend time implementing or redesigning the public storefront until a frontend design/template is explicitly provided.
 
 ---
 
-# Initial Workflow
+# Current Development Priority
 
-زمانی که مسیر افزونه WordPress و PDF نرخ‌نامه ارائه شد، مستقیماً شروع به کدنویسی نکن.
-
-ابتدا سیستم موجود را مهندسی معکوس کن.
-
-ترتیب بررسی:
-
-1. ساختار افزونه WordPress را بررسی کن.
-2. فایل‌های مرتبط با shipping، pricing، tariff، rate، post، pishtaz، vijeh و موارد مشابه را پیدا کن.
-3. مسیر اجرای محاسبه قیمت را پیدا کن.
-4. ورودی‌های محاسبه را شناسایی کن.
-5. فایل‌های data افزونه را پیدا کن.
-6. وابستگی بین استان، شهر، وزن، ارزش کالا، نوع مرسوله، روش پرداخت، بسته‌بندی و نوع سرویس را مشخص کن.
-7. تمام surchargeها و هزینه‌های جانبی را استخراج کن.
-8. PDF نرخ‌نامه را بررسی کن.
-9. جدول‌ها، ضرایب و بازه‌های وزنی PDF را با افزونه مقایسه کن.
-10. سپس معماری Laravel را طراحی و پیاده‌سازی کن.
-
----
-
-# WordPress Plugin Data
-
-یکی از مهم‌ترین الزامات پروژه این است که داده‌هایی که در افزونه WordPress داخل فایل‌های `data` یا فایل‌های مشابه قرار دارند، دوباره داخل کد Laravel به صورت دستی hard-code نشوند.
-
-به عنوان مثال اگر افزونه دارای فایل‌هایی برای موارد زیر باشد:
-
-* استان‌ها
-* شهرها
-* کد شهر
-* کد استان
-* مناطق پستی
-* نرخ‌ها
-* ضرایب
-* mappingها
-* package types
-* service codes
-
-نباید اطلاعات آن فایل‌ها را داخل Service یا Controller کپی کنی.
-
-## Required Behavior
-
-تا جای ممکن Laravel باید **مستقیماً همان فایل‌های داده افزونه را include/load کند**.
-
-هدف این است که اگر در آینده فایل‌های data افزونه به‌روزرسانی شدند، بتوان با جایگزین کردن فایل داده، اطلاعات جدید را بدون بازنویسی Service استفاده کرد.
-
-بنابراین این کار ممنوع است:
-
-```php
-$provinces = [
-    '1' => 'آذربایجان شرقی',
-    '2' => 'آذربایجان غربی',
-    // ...
-];
-```
-
-اگر همین اطلاعات در فایل data افزونه موجود باشد.
-
-به جای آن باید Adapter/Loader مناسبی ایجاد شود.
-
-مثلاً معماری می‌تواند چیزی شبیه این باشد:
+For now, focus primarily on:
 
 ```text
-app/
-    Services/
-        Shipping/
-            PostShippingCalculator.php
-
-            Data/
-                WordpressShippingDataLoader.php
-
-            DTO/
-                ShippingQuoteRequest.php
-                ShippingQuoteResult.php
+Admin Panel
+Domain Architecture
+Product Management
+Product Types
+Variable Products
+Orders
+Payments
+Tax
+Inventory
+Supporting Commerce Domains
 ```
 
-این فقط یک مثال است.
+Some admin sections already exist, including areas such as:
 
-ساختار نهایی باید بر اساس ساختار واقعی پروژه و افزونه انتخاب شود.
+* products
+* taxes
+* other commerce-related modules
+
+Existing code must be reviewed before replacing or extending it.
+
+Do not assume existing implementations are correct or production-ready.
+
+Analyze them first and improve them where necessary.
 
 ---
 
-# Separation Between Data and Logic
+# Critical Domain: Products
 
-داده و منطق محاسبه باید از یکدیگر جدا باشند.
+The product system is one of the most important parts of this project.
 
-به طور کلی:
+The project must support multiple product types.
+
+Among them, **Variable Product** is especially important and must be designed carefully.
+
+Variable product architecture must be capable of supporting concepts such as:
 
 ```text
-WordPress data files
+Product
+Product Type
+Simple Product
+Variable Product
+Attributes
+Attribute Values
+Variants
+Variant Attribute Combinations
+Variant SKU
+Variant Price
+Variant Sale Price
+Variant Stock
+Variant Availability
+Variant Images
+Variant-specific metadata
+```
+
+Do not implement variable products as a fragile collection of JSON blobs unless the existing architecture strongly justifies it.
+
+Prefer a relational and extensible domain model where product variants can be queried efficiently.
+
+The final architecture should be able to support large catalogs and a large number of variants.
+
+Pay special attention to:
+
+* variant uniqueness
+* attribute combinations
+* SKU uniqueness
+* stock tracking
+* price calculation
+* query efficiency
+* eager loading
+* database indexes
+* N+1 queries
+* Filament UX
+* future storefront usage
+
+Before modifying the product domain, inspect the existing models, migrations, Filament resources, services, relationships, and tests.
+
+---
+
+# Architecture
+
+The project should generally follow:
+
+```text
+MVC
+SOLID
+Event-Driven Architecture
+Event Sourcing where justified
+Service-oriented domain boundaries
+Clear separation of concerns
+```
+
+Do not force every feature into Event Sourcing.
+
+Event Sourcing should be used where historical state transitions, auditability, reconstruction, consistency, or business traceability justify the additional complexity.
+
+Strong candidates include:
+
+```text
+Orders
+Payments
+Refunds
+Inventory adjustments
+Financial state transitions
+Critical fulfillment workflows
+```
+
+For ordinary CRUD data such as simple content or basic configuration, normal persistence is usually preferable.
+
+---
+
+# Laravel Architecture
+
+Controllers must remain thin.
+
+Business logic should not accumulate inside:
+
+```text
+Controllers
+Filament Resources
+Blade templates
+Models
+Observers
+```
+
+Use appropriate domain/service classes where business rules become non-trivial.
+
+A typical flow may look like:
+
+```text
+Request / Filament Action
         ↓
-Data Loader / Adapter
+Application / Domain Service
         ↓
-Normalized Data
+Domain Logic
         ↓
-Laravel Shipping Calculator
-        ↓
-Quote Result
+Database / Events / Jobs
 ```
 
-Service محاسبه نباید تبدیل به مجموعه بزرگی از arrayهای hard-coded شود.
+Do not create unnecessary abstractions for trivial operations.
 
----
-
-# Reverse Engineering Requirement
-
-هدف فقط رسیدن به یک عدد مشابه افزونه نیست.
-
-باید منطق واقعی افزونه استخراج شود.
-
-برای هر بخش محاسبه مشخص کن:
-
-* ورودی چیست؟
-* داده از کجا می‌آید؟
-* فرمول چیست؟
-* چه شرط‌هایی وجود دارد؟
-* چه surchargeهایی اضافه می‌شوند؟
-* ترتیب اعمال هزینه‌ها چیست؟
-* rounding چگونه انجام می‌شود؟
-* واحد پول چیست؟
-* چه زمانی سرویس قابل ارسال نیست؟
-* چه validationهایی وجود دارد؟
-
----
-
-# Laravel Implementation
-
-پیاده‌سازی باید متناسب با معماری فعلی Laravel پروژه باشد.
-
-قبل از ایجاد ساختار جدید:
-
-* نسخه Laravel را بررسی کن.
-* conventionهای فعلی پروژه را بررسی کن.
-* ساختار Controllerها را بررسی کن.
-* Serviceهای موجود را بررسی کن.
-* Route structure را بررسی کن.
-* Blade/component conventions را بررسی کن.
-
-ساختار جدید را با معماری موجود پروژه هماهنگ نگه دار.
-
-از refactor غیرمرتبط خودداری کن.
-
----
-
-# Isolation Requirement
-
-این قابلیت فعلاً کاملاً مستقل است.
-
-نباید به موارد زیر متصل شود:
-
-* Cart
-* Checkout
-* Order
-* Product
-* Customer shipping address
-* Payment gateway
-* Existing shipping system
-
-نباید behavior موجود سایت تغییر کند.
-
-فقط یک صفحه تست مستقل ایجاد شود.
-
-مثلاً یک route مستقل شبیه:
+Avoid both extremes:
 
 ```text
-/shipping-calculator-test
+Fat Controllers / Fat Models
 ```
 
-نام دقیق route باید با convention پروژه هماهنگ شود.
-
----
-
-# Test View
-
-یک Blade View مستقل برای تست محاسبه هزینه ارسال ایجاد کن.
-
-صفحه باید RTL و مناسب زبان فارسی باشد.
-
-ظاهر پیچیده لازم نیست.
-
-هدف اصلی:
-
-* وارد کردن ورودی
-* اجرای محاسبه
-* مشاهده نتیجه
-* Debug کردن فرمول
-
----
-
-# Test Form Inputs
-
-فرم تست باید حداقل ورودی‌های زیر را داشته باشد.
-
-## Origin Province
-
-استان مبدأ.
-
-لیست استان‌ها باید از data موجود در افزونه خوانده شود و نباید دوباره hard-code شود، اگر این داده در افزونه وجود دارد.
-
----
-
-## Origin City
-
-شهر مبدأ.
-
-شهرها باید بر اساس استان انتخاب‌شده نمایش داده شوند.
-
-اگر mapping استان → شهر در افزونه وجود دارد، دقیقاً از همان داده استفاده شود.
-
----
-
-## Destination Province
-
-استان مقصد.
-
----
-
-## Destination City
-
-شهر مقصد.
-
-شهرها باید وابسته به استان مقصد باشند.
-
----
-
-## Parcel Weight
-
-وزن مرسوله بر حسب گرم.
-
-حداکثر فعلی فرم:
+and
 
 ```text
-30,000 grams
+Overengineered enterprise architecture for simple CRUD
 ```
 
-Validation واقعی باید با محدودیت‌های افزونه و نرخ‌نامه نیز بررسی شود.
+Use the simplest architecture that still preserves correctness, scalability, and maintainability.
 
 ---
 
-## Parcel Value
+# Event-Driven Architecture
 
-ارزش مرسوله بر حسب:
+Important domain changes should preferably publish meaningful domain/application events.
+
+Examples:
 
 ```text
-ریال
+OrderCreated
+OrderConfirmed
+OrderCancelled
+PaymentInitiated
+PaymentSucceeded
+PaymentFailed
+PaymentRefunded
+InventoryReserved
+InventoryReleased
+InventoryAdjusted
+ProductUpdated
+ProductPriceChanged
 ```
 
-واحد پول را بدون بررسی افزونه تغییر نده.
+Events should represent meaningful business facts.
 
-اگر افزونه در بخشی تومان و در بخشی ریال استفاده می‌کند، تبدیل واحد را دقیقاً شناسایی و مستند کن.
+Do not create events merely to move code between classes.
 
----
+Listeners should be used for side effects that do not need to execute directly inside the main request flow.
 
-## Parcel Type
-
-حداقل گزینه‌ها:
+Examples:
 
 ```text
-عادی
-شکستنی یا مایعات
+notifications
+emails
+search indexing
+cache invalidation
+analytics
+external synchronization
+non-critical projections
+audit processing
 ```
-
-بررسی کن افزونه برای مرسوله شکستنی/مایعات چه surcharge یا قانون خاصی اعمال می‌کند.
 
 ---
 
-## Payment Type
+# Event Sourcing
 
-گزینه‌ها:
+Where Event Sourcing is used, the event stream must remain authoritative for the event-sourced aggregate.
+
+Do not implement pseudo-event-sourcing where events are written merely as logs after mutating the main record.
+
+A proper event-sourced flow should conceptually follow:
 
 ```text
-پرداخت آنلاین
-پرداخت در محل
-پس‌کرایه
-ارسال رایگان
+Command
+    ↓
+Aggregate
+    ↓
+Domain Event
+    ↓
+Event Store
+    ↓
+Projection / Read Model
 ```
 
-رفتار هر گزینه باید از افزونه استخراج شود.
+Important requirements:
 
-صرفاً به دلیل نام گزینه درباره نحوه محاسبه آن حدس نزن.
+* events must be immutable
+* events should have stable event types
+* event payload compatibility must be considered
+* aggregate versioning should be supported where required
+* concurrent writes must be handled safely
+* projections should be rebuildable
+* side effects should not make replay unsafe
+* idempotency should be considered
+
+Do not introduce Event Sourcing into a domain until the trade-offs have been analyzed.
 
 ---
 
-# Package Size
+# Orders
 
-گزینه‌های فرم:
+Orders are a critical domain.
+
+Order architecture must account for:
 
 ```text
-کارتن پستی سایز 1
-کارتن پستی سایز 2
-کارتن پستی سایز 3
-کارتن پستی سایز 4
-کارتن پستی سایز 5
-کارتن پستی سایز 6
-کارتن پستی سایز 7
-کارتن پستی سایز 8
-کارتن پستی سایز 9
-بزرگتر از کارتن پستی سایز 9
-
-پاکت جوف A5
-پاکت جوف A4
-پاکت جوف A3
-پاکت جوف B5
-پاکت جوف B4
+Order items
+Pricing snapshots
+Taxes
+Discounts
+Shipping
+Payment state
+Fulfillment state
+Order state transitions
+Cancellation
+Refunds
+Inventory
+Audit history
 ```
 
-اگر افزونه برای package type شناسه، code، weight، price یا mapping خاصی دارد از همان استفاده کن.
+Never rely on current Product values to reconstruct historical orders.
 
----
+Important order information should be snapshotted when the order is created.
 
-# Shipping Service
-
-فرم فقط این دو گزینه را نمایش دهد:
+For example:
 
 ```text
-پست پیشتاز
-پست ویژه
+product name
+variant
+SKU
+unit price
+discount
+tax
+quantity
+totals
 ```
 
-حتی اگر افزونه روش‌های ارسال بیشتری داشته باشد، در این implementation آن‌ها را وارد نکن.
+Historical orders must remain accurate even if products change later.
 
 ---
 
-# Clear Form
+# Payments
 
-یک دکمه برای پاک کردن/reset فرم وجود داشته باشد.
+Payment logic must be isolated from controllers and UI.
 
----
-
-# Province and City Data
-
-لیست کامل استان‌ها و شهرها را از متن این فایل hard-code نکن.
-
-نمونه‌هایی که در specification ارائه شده‌اند فقط برای توضیح UI هستند.
-
-Source of Truth باید داده‌های خود افزونه باشد.
-
-به خصوص برای شهرها، spelling، شناسه‌ها و mappingها باید از فایل افزونه استخراج شوند.
-
----
-
-# Calculation Result
-
-نتیجه محاسبه در صفحه تست باید حداقل شامل این موارد باشد:
+Payment operations must consider:
 
 ```text
-service
-final_price
-currency
-available
+idempotency
+duplicate callbacks
+gateway retries
+network failures
+race conditions
+payment verification
+transaction references
+refunds
+payment status transitions
+auditability
 ```
 
-در صورت امکان برای Debug breakdown هزینه نیز نمایش داده شود.
+Never mark an order as paid solely because the browser returned from a gateway.
 
-مثلاً:
+Payment confirmation must be based on authoritative server-side verification.
+
+Sensitive payment state changes should be transactional.
+
+---
+
+# Database Transactions
+
+Use database transactions around multi-step state changes where partial completion could corrupt business state.
+
+Examples:
 
 ```text
-Base postage
-Weight surcharge
-Destination/zone surcharge
-Declared value / insurance
-Packaging
-Fragile/liquid surcharge
-Payment-related cost
-Tax/VAT
-Other charges
-Final price
+creating order + order items
+payment confirmation
+inventory reservation
+inventory deduction
+refund processing
+critical financial transitions
 ```
 
-اما فقط آیتم‌هایی را نمایش بده که واقعاً در منطق افزونه یا PDF وجود دارند.
+Do not create long transactions containing external network requests.
 
-آیتم ساختگی ایجاد نکن.
-
----
-
-# Debug Mode
-
-در صفحه تست بهتر است breakdown محاسبه قابل مشاهده باشد تا بتوان نتیجه Laravel را با افزونه WordPress مقایسه کرد.
-
-برای مثال result object می‌تواند مفهومی مشابه این داشته باشد:
-
-```php
-[
-    'service' => 'pishtaz',
-    'available' => true,
-    'currency' => 'IRR',
-
-    'breakdown' => [
-        // calculated components
-    ],
-
-    'total' => 0,
-]
-```
-
-این structure فقط پیشنهاد است.
-
-اگر معماری بهتر با پروژه وجود دارد از آن استفاده کن.
-
----
-
-# Precision and Rounding
-
-یکی از موارد مهم در مهندسی معکوس:
-
-* integer/float usage
-* rounding
-* floor
-* ceil
-* weight steps
-* currency conversion
-
-را دقیقاً بررسی کن.
-
-اختلاف چند ریال یا چند تومان نیز ممکن است نشانه تفاوت در ترتیب محاسبات باشد.
-
-نتیجه را صرفاً با اضافه کردن correction number تطبیق نده.
-
-دلیل اختلاف را پیدا کن.
-
----
-
-# Weight Rules
-
-بازه‌های وزن باید مستقیماً از افزونه و PDF استخراج شوند.
-
-مواردی مانند:
+Prefer:
 
 ```text
-تا 500 گرم
-500 تا 1000 گرم
-هر 1000 گرم اضافه
-...
+DB transaction
+    ↓
+commit
+    ↓
+dispatch event/job
 ```
 
-نباید حدس زده شوند.
-
-اگر افزونه برای وزن از `ceil` یا bracket خاص استفاده می‌کند، همان رفتار بازسازی شود.
+where appropriate.
 
 ---
 
-# Destination Rules
+# Queue Architecture
 
-بررسی کن قیمت به کدام موارد وابسته است:
+Heavy or non-critical operations should not unnecessarily block HTTP requests.
 
-* داخل شهری
-* درون استانی
-* استان همجوار
-* استان غیرهمجوار
-* منطقه پستی
-* distance zone
-* city code
-* province code
+Use queued jobs for operations such as:
 
-این دسته‌بندی را از افزونه استخراج کن.
+```text
+email
+notifications
+external API synchronization
+report generation
+image processing
+search indexing
+large imports
+analytics
+non-critical projections
+```
 
-بر اساس نام استان‌ها خودت الگوریتم جغرافیایی نساز مگر افزونه دقیقاً چنین کاری انجام دهد.
+Jobs must be designed with production behavior in mind.
+
+Consider:
+
+```text
+retries
+timeouts
+backoff
+idempotency
+duplicate execution
+failed jobs
+job uniqueness
+queue prioritization
+```
+
+Never assume a queued job will execute exactly once.
+
+---
+
+# Scheduling
+
+Recurring system operations should use Laravel Scheduler.
+
+Examples may include:
+
+```text
+cleanup jobs
+expired reservation processing
+scheduled publishing
+data synchronization
+report generation
+temporary data cleanup
+maintenance tasks
+```
+
+Scheduled commands must be safe under multi-server deployments.
+
+Avoid a situation where every application node executes the same critical scheduled task simultaneously.
+
+Use Laravel mechanisms such as:
+
+```text
+onOneServer()
+withoutOverlapping()
+```
+
+where appropriate.
+
+---
+
+# Load Balancing
+
+The application must remain compatible with multiple application servers behind a load balancer.
+
+Do not rely on server-local state for application correctness.
+
+Avoid assumptions such as:
+
+```text
+local session state
+local cache as authoritative storage
+local uploaded files existing on every node
+single-server cron behavior
+single-server locks
+process-local state
+```
+
+Shared state should use appropriate centralized infrastructure.
+
+Production architecture should remain compatible with:
+
+```text
+multiple Laravel application nodes
+central database
+shared Redis
+shared/object file storage
+workers
+scheduler coordination
+```
+
+Do not introduce unnecessary infrastructure on the local development environment solely because production will be horizontally scaled.
+
+---
+
+# Cache Strategy
+
+Caching is important, but correctness is more important than cache hit rate.
+
+Cache only data that has a clear invalidation strategy.
+
+Before adding cache, answer:
+
+```text
+What is cached?
+Why is it cached?
+What is the cache key?
+How long can it be stale?
+What invalidates it?
+What happens after updates?
+What happens under concurrent requests?
+```
+
+Prefer targeted cache invalidation over broad:
+
+```text
+Cache::flush()
+```
+
+unless a global flush is genuinely required.
+
+Potential cache candidates include:
+
+```text
+categories
+taxonomies
+product summaries
+configuration
+navigation
+expensive read queries
+computed read models
+```
+
+Frequently changing transactional state may not be suitable for aggressive caching.
+
+---
+
+# Cache Invalidation
+
+Cache invalidation must be explicit and centralized.
+
+Whenever cached domain data changes, identify which cache entries become stale.
+
+Prefer:
+
+```text
+domain update
+    ↓
+event
+    ↓
+cache invalidation listener
+```
+
+where it improves separation of concerns.
+
+Do not scatter cache deletion logic randomly throughout controllers and models.
+
+Be careful with wildcard deletion patterns that may become expensive at scale.
+
+---
+
+# Redis
+
+Production may use Redis for:
+
+```text
+cache
+queues
+locks
+rate limiting
+sessions
+distributed coordination
+```
+
+Do not make local development unnecessarily dependent on Redis unless the repository is already configured for it.
+
+The code should use Laravel abstractions wherever possible so the backend driver remains configurable.
+
+Avoid direct coupling to a specific Redis implementation when Laravel's cache/queue/lock abstractions are sufficient.
+
+---
+
+# Concurrency and Race Conditions
+
+Critical commerce operations must be designed for concurrency.
+
+Pay special attention to:
+
+```text
+inventory
+orders
+payments
+coupons
+limited-use discounts
+refunds
+variant stock
+reservation systems
+financial records
+```
+
+Potential solutions may include:
+
+```text
+database transactions
+atomic updates
+unique indexes
+optimistic locking
+pessimistic locking
+distributed locks
+idempotency keys
+```
+
+Do not solve concurrency problems only in PHP application memory.
+
+---
+
+# Database Design
+
+Database design must support future scale.
+
+Before adding or modifying tables:
+
+* inspect existing schema
+* inspect query patterns
+* identify required indexes
+* avoid unnecessary duplication
+* preserve foreign key integrity where appropriate
+* avoid unbounded JSON when relational querying is required
+* consider unique constraints
+* consider composite indexes
+
+Do not blindly add indexes to every column.
+
+Indexes should match real query patterns.
+
+---
+
+# Eloquent
+
+Avoid:
+
+```text
+N+1 queries
+unbounded relationship loading
+querying inside loops
+unnecessary model hydration
+loading full models when IDs are enough
+```
+
+Use:
+
+```text
+eager loading
+select()
+withCount()
+exists()
+chunking
+cursor/lazy iteration
+query builder
+```
+
+where appropriate.
+
+Always consider how a query behaves with:
+
+```text
+10 records
+10,000 records
+1,000,000 records
+```
+
+---
+
+# Filament Admin Panel
+
+The admin panel is built using Filament.
+
+Use existing Filament conventions in the project before introducing new patterns.
+
+Admin resources should be optimized for:
+
+```text
+usability
+query efficiency
+validation
+authorization
+large datasets
+search
+filters
+pagination
+bulk actions
+relationships
+```
+
+Do not load massive datasets into Select components.
+
+For large relationships use:
+
+```text
+searchable selects
+async relationship search
+preload only when dataset is small
+```
+
+Avoid N+1 queries in:
+
+```text
+tables
+columns
+filters
+relationship managers
+form options
+```
+
+---
+
+# Existing Filament Code
+
+Some Filament resources already exist.
+
+Do not rewrite them automatically.
+
+For each area under review:
+
+1. inspect current implementation
+2. understand intended behavior
+3. identify correctness issues
+4. identify architectural issues
+5. identify performance issues
+6. identify UX issues
+7. identify authorization issues
+8. improve incrementally
+
+Preserve working behavior unless a change is intentional.
+
+---
+
+# Authorization
+
+Admin access must use Laravel authorization mechanisms.
+
+Prefer:
+
+```text
+Policies
+Gates
+Filament authorization hooks
+```
+
+Do not rely only on hiding buttons in the UI.
+
+Every sensitive server-side action must enforce authorization independently.
 
 ---
 
 # Validation
 
-Request validation باید حداقل موارد زیر را پوشش دهد:
+Validation must exist at the application boundary.
 
-* origin province required
-* origin city required
-* destination province required
-* destination city required
-* weight required
-* weight numeric
-* weight > 0
-* declared value numeric
-* package type valid
-* parcel type valid
-* payment type valid
-* service valid
+Do not depend solely on frontend validation.
 
-مقادیر enum باید از domain واقعی استخراج شوند.
+Important domain invariants should also be protected inside the domain/application layer where appropriate.
 
 ---
 
-# Avoid Database Unless Required
+# Frontend
 
-در این مرحله برای این feature migration، table یا Model جدید ایجاد نکن مگر اینکه واقعاً برای بازسازی منطق افزونه ضروری باشد.
-
-ترجیح فعلی:
+The storefront will use:
 
 ```text
-stateless calculation service
+Laravel Blade
+SSR
 ```
 
-یعنی:
+The website language is Persian/Farsi.
+
+The frontend must support:
 
 ```text
-Input → Calculate → Result
+RTL
+Persian content
+SEO-friendly server-rendered HTML
 ```
 
-نه ذخیره دائمی quote.
+However:
+
+**Do not implement or redesign the storefront yet.**
+
+No final frontend template/design has been provided.
+
+Until explicitly instructed:
+
+* do not spend significant time on storefront styling
+* do not introduce SPA frameworks
+* do not migrate the project to React/Vue/Next/Nuxt
+* do not replace Blade
+* do not create speculative public storefront pages
+
+Backend and admin architecture should still remain compatible with the future Blade SSR frontend.
 
 ---
 
-# No Premature Integration
+# Blog
 
-در این مرحله موارد زیر را انجام نده:
+The project includes a blog.
+
+The blog should remain part of the same Laravel application unless explicitly changed later.
+
+Typical concerns include:
 
 ```text
-Checkout integration
-Cart integration
-Order integration
-Shipping Method integration
-Admin settings
-Caching system
-Queue
-API endpoint for external clients
-Database persistence
+posts
+categories
+tags
+authors
+publishing status
+scheduled publishing
+SEO metadata
+slugs
+media
 ```
 
-مگر اینکه بعداً صراحتاً درخواست شوند.
+Do not over-couple blog models with the commerce domain.
 
 ---
 
-# Tests
+# SEO
 
-برای منطق محاسبه تست ایجاد کن.
+Because the storefront and blog use SSR, backend implementations should preserve future SEO requirements.
 
-تمرکز اصلی تست‌ها باید روی calculator/service باشد نه UI.
-
-پس از استخراج الگوریتم، چند fixture واقعی از افزونه ایجاد کن.
-
-برای نمونه:
+Where applicable consider:
 
 ```text
-origin
-destination
-weight
-value
-parcel type
-payment type
-package
-service
-expected price
+stable slugs
+canonical URLs
+metadata
+structured data compatibility
+indexable server-rendered pages
 ```
 
-Expected price باید از اجرای منطق مرجع یا محاسبه معتبر افزونه/PDF به دست آمده باشد.
-
-عدد ساختگی به عنوان expected result استفاده نکن.
+Do not implement speculative SEO infrastructure unless relevant to the current task.
 
 ---
 
-# Comparison Tests
+# API and Service Boundaries
 
-بعد از پیاده‌سازی، حداقل چند سناریو از این دسته‌ها بررسی شوند:
+Even though the primary frontend uses Blade, business logic must not be coupled directly to Blade pages.
+
+Future API access should remain possible without rewriting core business logic.
+
+Keep domain/application logic reusable from:
 
 ```text
-low weight
-high weight
-same province
-different province
-different postal zone
-normal parcel
-fragile/liquid parcel
-different package sizes
-online payment
-COD / payment variants
-Pishtaz
-Vijeh
-```
-
-فقط سناریوهایی را اجرا کن که واقعاً توسط افزونه پشتیبانی می‌شوند.
-
----
-
-# Code Quality
-
-کد باید:
-
-* خوانا باشد
-* مسئولیت‌ها را جدا کند
-* تست‌پذیر باشد
-* از magic number تا حد امکان جلوگیری کند
-* داده را از logic جدا کند
-* از duplicate logic جلوگیری کند
-
-از overengineering خودداری کن.
-
-برای این مرحله یک calculator مستقل کافی است.
-
----
-
-# Comments
-
-کامنت فقط برای توضیح منطق غیرواضح نرخ‌نامه یا رفتار خاص افزونه استفاده شود.
-
-کامنت‌هایی شبیه:
-
-```php
-// calculate price
-```
-
-ارزش خاصی ندارند.
-
-اما اگر رفتار عجیب افزونه وجود داشت، توضیح آن مفید است:
-
-```php
-// The original WordPress plugin rounds the weight up to the next
-// tariff bracket before applying the service coefficient.
+Blade
+Filament
+Controllers
+Commands
+Jobs
+APIs
 ```
 
 ---
 
-# Preserve Traceability
+# Observability
 
-تا جای ممکن مشخص باشد هر قانون از کجا آمده است.
+Important failures must be observable.
 
-برای قوانین مهم می‌توان کامنت کوتاهی گذاشت که به:
+Do not silently swallow exceptions.
 
-```text
-WordPress plugin file
-PDF tariff section/table
-```
+Use appropriate Laravel logging and failed-job handling.
 
-اشاره کند.
+Critical flows should expose enough context to diagnose failures without logging secrets or sensitive payment data.
 
-مثلاً:
-
-```php
-// Source: wordpress-plugin/.../calculator.php
-```
-
-یا:
-
-```php
-// Source: postal tariff PDF - Pishtaz weight table
-```
-
-از وابستگی به شماره صفحه PDF فقط در صورتی استفاده کن که شماره صفحات قابل اتکا باشد.
-
----
-
-# Important Data Rule
-
-اطلاعات موجود در فایل‌های `data` افزونه را داخل Service دوباره ننویس.
-
-یعنی این:
+For complex workflows consider meaningful structured context such as:
 
 ```text
-Plugin data
-→ copied manually
-→ Laravel PHP array
+order_id
+payment_id
+job_id
+user_id
+event_id
 ```
 
-مطلوب نیست.
-
-هدف این است:
-
-```text
-Plugin data file
-→ Adapter / Loader
-→ Laravel
-```
-
-تا بتوان فایل data افزونه را در آینده به‌روزرسانی کرد.
-
-اگر فرمت فایل‌های data مستقیماً قابل استفاده در Laravel نیست، یک Adapter بنویس.
-
-Adapter باید داده را normalize کند ولی dataset را duplicate نکند.
+where safe and appropriate.
 
 ---
 
 # Security
 
-فایل‌های افزونه WordPress را execute نکن مگر اینکه مشخص شود safe و لازم است.
+Follow Laravel security conventions.
 
-اگر فایل data حاوی PHP executable code است، ابتدا ساختار آن را بررسی کن.
+Important requirements:
 
-اگر include مستقیم باعث اجرای bootstrap یا side effect افزونه WordPress می‌شود، آن را مستقیماً include نکن.
+* validate input
+* authorize actions
+* avoid mass-assignment vulnerabilities
+* avoid exposing secrets
+* avoid logging credentials
+* use CSRF protection where applicable
+* prevent IDOR
+* safely handle file uploads
+* sanitize/escape output appropriately
+* protect financial/admin operations
+* avoid arbitrary file execution
 
-در چنین شرایطی یک loader امن طراحی کن که فقط data مورد نیاز را بخواند.
+Do not disable framework security mechanisms to simplify implementation.
 
 ---
 
-# WordPress Dependencies
+# Money
 
-Laravel نباید برای کار کردن به runtime وردپرس وابسته شود.
+Do not use floating-point arithmetic for monetary values.
 
-یعنی calculator نباید نیازمند مواردی مثل:
+Prefer integer minor/base currency representation.
+
+If the project uses Iranian Rial:
+
+```text
+100000 = 100,000 IRR
+```
+
+Keep currency handling consistent across:
+
+```text
+products
+orders
+tax
+discounts
+shipping
+payments
+refunds
+```
+
+Do not silently mix Rial and Toman.
+
+---
+
+# Taxes
+
+Tax calculations should be centralized.
+
+Avoid duplicating tax formulas across:
+
+```text
+Product
+Cart
+Order
+Filament
+Checkout
+Reports
+```
+
+Tax calculations should be deterministic and testable.
+
+Historical orders must preserve the tax values applied at purchase time.
+
+---
+
+# Product Pricing
+
+Product pricing should have a clear authoritative path.
+
+For variable products consider:
+
+```text
+base product
+variant price
+sale price
+scheduled sale
+tax treatment
+future promotions
+```
+
+Avoid calculating price independently in multiple UI layers.
+
+---
+
+# Inventory
+
+Inventory rules must be centralized.
+
+For variants, inventory should usually be tracked at variant level where appropriate.
+
+Critical stock operations must consider concurrent purchases.
+
+Never implement stock reduction as:
 
 ```php
-add_action()
-get_option()
-WC()
-wp_remote_get()
-wpdb
-WooCommerce classes
-WordPress bootstrap
+$model->stock = $model->stock - $quantity;
+$model->save();
 ```
 
-باشد.
-
-اگر منطق افزونه به این APIها وابسته بود، فقط business logic مورد نیاز را استخراج و در Laravel بازسازی کن.
+without considering race conditions.
 
 ---
 
-# External APIs
+# Testing
 
-اگر افزونه برای محاسبه نرخ به API خارجی درخواست می‌زند:
+New business logic must be testable.
 
-قبل از پیاده‌سازی مشخص کن:
-
-* API چیست؟
-* endpoint چیست؟
-* کدام بخش قیمت local است؟
-* کدام بخش remote است؟
-* authentication دارد یا خیر؟
-* PDF چه نقشی دارد؟
-
-بدون بررسی، API call جدید ایجاد نکن.
-
----
-
-# Currency
-
-واحدهای زیر ممکن است در منابع دیده شوند:
+Prioritize tests for critical domains:
 
 ```text
-IRR / ریال
-تومان
+products
+variants
+pricing
+tax
+orders
+payments
+inventory
+discounts
+event sourcing
 ```
 
-واحد اصلی calculator باید بعد از بررسی افزونه مشخص شود.
-
-تبدیل تومان ↔ ریال فقط در یک نقطه مشخص انجام شود.
-
-تبدیل واحد را در چند Service یا View پراکنده نکن.
-
----
-
-# Naming
-
-برای نام‌های داخلی انگلیسی و ثابت استفاده کن.
-
-مثلاً:
+Use appropriate:
 
 ```text
-pishtaz
-vijeh
-normal
-fragile
-online
-cod
+Unit Tests
+Feature Tests
+Integration Tests
 ```
 
-ولی mapping دقیق identifiers باید بر اساس افزونه تعیین شود.
+Do not test implementation details unnecessarily.
 
-UI می‌تواند فارسی باشد.
+Test business behavior.
 
 ---
 
-# Suggested Domain
+# Refactoring
 
-در صورت سازگاری با پروژه، domain می‌تواند حول مفاهیم زیر طراحی شود:
+Do not perform large unrelated refactors while completing a focused task.
+
+If a larger architectural issue is discovered:
+
+1. document the issue
+2. explain the risk
+3. determine whether it blocks the current task
+4. refactor only if justified
+
+Prefer incremental improvements.
+
+---
+
+# Dependency Policy
+
+Do not install packages simply because they make a small task easier.
+
+Before adding a dependency:
+
+* check if Laravel already provides the capability
+* check whether the project already contains an equivalent package
+* evaluate maintenance status
+* evaluate production implications
+
+Do not upgrade Laravel, Filament, PHP, or other major dependencies unless explicitly requested.
+
+---
+
+# Coding Style
+
+Follow the existing repository conventions.
+
+Prefer:
 
 ```text
-ShippingQuoteRequest
-ShippingQuoteResult
-PostShippingCalculator
-WordpressShippingDataLoader
+strict responsibilities
+clear naming
+small focused methods
+dependency injection
+framework-native abstractions
+typed PHP where appropriate
+DTOs/value objects when they improve correctness
 ```
 
-اما قبل از ساخت آن‌ها، ساختار پروژه موجود را بررسی کن.
-
-این نام‌ها requirement قطعی نیستند.
+Avoid unnecessary complexity.
 
 ---
 
-# Test Page Behavior
+# Source of Truth
 
-Flow صفحه تست:
+Before making architectural assumptions, inspect the actual repository.
+
+The repository is the primary source of truth for:
 
 ```text
-Select origin province
-        ↓
-Select origin city
-        ↓
-Select destination province
-        ↓
-Select destination city
-        ↓
-Enter weight
-        ↓
-Enter declared value
-        ↓
-Select parcel type
-        ↓
-Select payment type
-        ↓
-Select package size
-        ↓
-Select Pishtaz or Vijeh
-        ↓
-Calculate
-        ↓
-Show result + breakdown
+Laravel version
+PHP version
+Filament version
+existing architecture
+models
+database schema
+services
+events
+jobs
+policies
+tests
+coding conventions
 ```
+
+Do not assume a fresh Laravel installation.
 
 ---
 
-# UI Is Not The Priority
+# Initial Repository Audit
 
-روی طراحی ظاهری بیش از حد زمان صرف نکن.
+Before major development begins, inspect the project and build a practical understanding of the existing codebase.
 
-هدف این صفحه:
+At minimum inspect:
 
 ```text
-Reverse engineering validation
-Calculation testing
-Comparison
-Debugging
+composer.json
+package.json
+config/
+routes/
+app/Models
+app/Services
+app/Actions
+app/Events
+app/Listeners
+app/Jobs
+app/Policies
+app/Filament
+database/migrations
+database/seeders
+tests/
 ```
 
-است.
+Only inspect directories that actually exist.
 
-از CSS/JavaScript framework جدید صرفاً برای این صفحه اضافه نکن.
+Also identify:
 
-از امکانات فعلی پروژه استفاده کن.
+* product architecture
+* product types
+* variable product implementation
+* inventory architecture
+* order architecture
+* payment architecture
+* tax architecture
+* existing queues/jobs
+* existing scheduled tasks
+* current cache usage
+* current cache invalidation
+* existing events/listeners
+* existing event sourcing
+* authorization strategy
+* Filament architecture
+* major technical debt
 
 ---
 
-# Do Not Modify Unrelated Code
+# Audit Before Rewrite
 
-اصل مهم:
+Do not immediately rewrite existing code.
+
+For existing modules classify findings as:
 
 ```text
-minimum necessary changes
+Keep
+Improve
+Refactor
+Replace
+Missing
 ```
 
-هیچ فایل نامرتبطی را refactor نکن.
+Explain why.
 
-هیچ package جدیدی نصب نکن مگر واقعاً ضروری باشد.
-
-هیچ dependency را upgrade نکن.
+A working implementation should not be replaced solely because another pattern is theoretically cleaner.
 
 ---
 
-# Before Implementation Report
+# Performance Review
 
-پس از دریافت افزونه و PDF و قبل از تغییر جدی کد، ابتدا یک گزارش کوتاه از یافته‌ها ارائه کن.
-
-گزارش باید شامل این موارد باشد:
+When reviewing important modules, check for:
 
 ```text
-Relevant WordPress files
-Relevant data files
-Main calculation entry point
-Pishtaz calculation flow
-Vijeh calculation flow
-Weight rules
-Location/zone rules
-Package rules
-Declared value rules
-Payment rules
-Extra charges
-Tax/VAT
-Currency
-Rounding
-Relevant PDF tables
-Differences between plugin and PDF
+N+1 queries
+missing indexes
+unbounded queries
+large Select option loads
+query-in-loop
+unnecessary eager loading
+repeated calculations
+inefficient cache use
+synchronous heavy operations
+race conditions
 ```
 
-بعد از شناخت کافی، implementation را انجام بده.
+Do not perform premature micro-optimizations.
+
+Fix problems that can materially affect production behavior.
 
 ---
 
-# After Implementation Report
+# Development Workflow
 
-پس از اتمام کار، گزارش بده:
+For every significant requested feature:
 
-1. چه فایل‌هایی ایجاد شدند.
-2. چه فایل‌هایی تغییر کردند.
-3. calculator کجا قرار دارد.
-4. data loader چگونه کار می‌کند.
-5. route تست چیست.
-6. هر سرویس چگونه محاسبه می‌شود.
-7. چه قسمت‌هایی از افزونه مرجع بودند.
-8. چه قسمت‌هایی از PDF مرجع بودند.
-9. چه اختلاف‌هایی بین افزونه و PDF پیدا شد.
-10. چه تست‌هایی اجرا شدند.
-11. آیا نتایج Laravel با مرجع تطبیق دارند یا خیر.
-
----
-
-# Definition of Done
-
-این مرحله زمانی کامل است که:
-
-* افزونه WordPress بررسی شده باشد.
-* PDF نرخ‌نامه بررسی شده باشد.
-* منطق Pishtaz استخراج شده باشد.
-* منطق Vijeh استخراج شده باشد.
-* داده‌های افزونه duplicate/hard-code نشده باشند.
-* calculator مستقل Laravel ساخته شده باشد.
-* صفحه تست مستقل وجود داشته باشد.
-* مبدا و مقصد قابل انتخاب باشند.
-* شهرها بر اساس استان قابل انتخاب باشند.
-* وزن قابل وارد کردن باشد.
-* ارزش مرسوله قابل وارد کردن باشد.
-* نوع مرسوله قابل انتخاب باشد.
-* نوع پرداخت قابل انتخاب باشد.
-* اندازه بسته قابل انتخاب باشد.
-* Pishtaz/Vijeh قابل انتخاب باشد.
-* هزینه محاسبه شود.
-* breakdown قابل بررسی باشد.
-* validation وجود داشته باشد.
-* تست‌های calculator وجود داشته باشند.
-* هیچ اتصال جدیدی به Checkout/Cart/Order ایجاد نشده باشد.
-* رفتار بخش‌های دیگر سایت تغییر نکرده باشد.
+1. Read this AGENTS.md.
+2. Inspect the relevant existing code.
+3. Understand dependencies and business rules.
+4. Identify architecture and data-flow impact.
+5. Check concurrency implications.
+6. Check caching implications.
+7. Check queue/event implications.
+8. Check authorization/security.
+9. Check database/index implications.
+10. Implement the minimum coherent solution.
+11. Add/update tests.
+12. Run relevant tests/static checks where available.
+13. Report what changed.
 
 ---
 
-# Current Status
+# Before Major Changes
 
-در حال حاضر مسیر منابع هنوز ارائه نشده است.
-
-بنابراین تا زمانی که مسیرهای زیر ارائه نشده‌اند، درباره فرمول نهایی حمل‌ونقل حدس نزن:
+Before a major architectural change, provide a concise report covering:
 
 ```text
-WORDPRESS_PLUGIN_PATH = D:\uni-shop-project\ecommerce-main\codex\plugin
-POSTAL_TARIFF_PDF_PATH =D:\uni-shop-project\ecommerce-main\codex
+Current implementation
+Problems found
+Proposed architecture
+Files/components affected
+Database impact
+Backward compatibility
+Concurrency implications
+Cache implications
+Queue/event implications
+Migration risk
 ```
 
-پس از ارائه این دو مسیر، ابتدا منابع را بررسی و سپس implementation را شروع کن.
+Do not stop for approval for every small implementation detail unless explicitly instructed.
+
+---
+
+# After Changes
+
+After completing a task report:
+
+```text
+Created files
+Modified files
+Database changes
+Events added/changed
+Jobs added/changed
+Cache behavior
+Authorization changes
+Tests added
+Tests executed
+Known limitations
+Recommended next step
+```
+
+---
+
+# Current Project Direction
+
+Current priorities are:
+
+1. Understand and audit the existing project.
+2. Improve the overall architecture where necessary.
+3. Continue development of the Filament admin panel.
+4. Review and improve existing Product and Tax implementations.
+5. Establish a robust Product domain.
+6. Give special attention to Variable Products.
+7. Prepare Orders, Payments, Inventory, and related domains for production-scale behavior.
+8. Use Events, Queues, Scheduler, Cache, and Event Sourcing where they provide real architectural value.
+9. Preserve horizontal scaling compatibility.
+10. Do not develop the final public storefront until its design/template is provided.
+
+The goal is not merely to make features work.
+
+The goal is to build a maintainable, scalable, production-ready e-commerce system.

@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\TaxClasses\RelationManagers;
 
-use App\Enums\TaxType;
 use App\Models\Product;
+use App\Services\Tax\TaxCalculator;
 use Filament\Actions\AssociateAction;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -59,11 +59,9 @@ class ProductsRelationManager extends RelationManager
                     ->state(function (Product $record): string {
                         $taxClass = $this->getOwnerRecord();
 
-                        $amount = $taxClass->type === TaxType::Percent
-                            ? ((float) $record->price * (float) $taxClass->value) / 100
-                            : (float) $taxClass->value;
+                        $amount = app(TaxCalculator::class)->calculateTax((int) $record->price, $taxClass);
 
-                        return number_format($amount) . ' ریال';
+                        return number_format($amount).' ریال';
                     })
                     ->badge()
                     ->color('warning'),
@@ -71,14 +69,14 @@ class ProductsRelationManager extends RelationManager
                 TextColumn::make('status')
                     ->label('وضعیت')
                     ->badge()
-                    ->formatStateUsing(fn($state): string => match ($state instanceof \BackedEnum ? $state->value : $state) {
+                    ->formatStateUsing(fn ($state): string => match ($state instanceof \BackedEnum ? $state->value : $state) {
                         'published' => 'منتشر شده',
                         'draft' => 'پیش‌نویس',
                         'pending' => 'در انتظار',
                         'private' => 'خصوصی',
                         default => (string) $state,
                     })
-                    ->color(fn($state): string => match ($state instanceof \BackedEnum ? $state->value : $state) {
+                    ->color(fn ($state): string => match ($state instanceof \BackedEnum ? $state->value : $state) {
                         'published' => 'success',
                         'draft' => 'gray',
                         'pending' => 'warning',
@@ -106,7 +104,7 @@ class ProductsRelationManager extends RelationManager
                     ->preloadRecordSelect()
                     ->recordSelectSearchColumns(['name', 'sku'])
                     ->recordSelectOptionsQuery(
-                        fn(Builder $query) => $query->whereNull('tax_class_id')
+                        fn (Builder $query) => $query->whereNull('tax_class_id')
                     ),
             ])
             ->recordActions([
@@ -123,7 +121,7 @@ class ProductsRelationManager extends RelationManager
                         ->icon('heroicon-o-check-badge')
                         ->color('success')
                         ->requiresConfirmation()
-                        ->action(fn(Collection $records) => $records->each->update(['status' => 'published']))
+                        ->action(fn (Collection $records) => $records->each->update(['status' => 'published']))
                         ->deselectRecordsAfterCompletion(),
                 ]),
             ])

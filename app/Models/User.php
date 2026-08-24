@@ -4,17 +4,20 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Database\Factories\UserFactory;
+use Filament\Models\Contracts\FilamentUser;
+use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable
+class User extends Authenticatable implements FilamentUser
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, SoftDeletes;
+    use HasFactory, HasRoles, Notifiable, SoftDeletes;
 
     /**
      * The attributes that are mass assignable.
@@ -38,6 +41,7 @@ class User extends Authenticatable
         'last_login_at',
         'last_login_ip',
     ];
+
     /**
      * The attributes that should be hidden for serialization.
      *
@@ -53,14 +57,22 @@ class User extends Authenticatable
      *
      * @return array<string, string>
      */
-
     protected $casts = [
-        'email_verified_at'  => 'datetime',
+        'email_verified_at' => 'datetime',
         'mobile_verified_at' => 'datetime',
-        'birth_date'         => 'date',
-        'is_legal'           => 'boolean',
-        'last_login_at'      => 'datetime',
+        'birth_date' => 'date',
+        'is_legal' => 'boolean',
+        'last_login_at' => 'datetime',
     ];
+
+    public function canAccessPanel(Panel $panel): bool
+    {
+        if ($this->trashed() || $panel->getId() !== 'admin') {
+            return false;
+        }
+
+        return $this->hasAnyRole(['super-admin', 'admin']) || $this->getAllPermissions()->isNotEmpty();
+    }
 
     // protected function casts(): array
     // {
@@ -95,19 +107,23 @@ class User extends Authenticatable
     {
         return $this->hasMany(Order::class);
     }
+
     // در app/Models/User.php اضافه کن:
     public function reviews()
     {
         return $this->hasMany(Review::class);
     }
+
     public function questions()
     {
         return $this->hasMany(ProductQuestion::class);
     }
+
     public function answers()
     {
         return $this->hasMany(ProductAnswer::class);
     }
+
     // app/Models/User.php
     public function coupons()
     {

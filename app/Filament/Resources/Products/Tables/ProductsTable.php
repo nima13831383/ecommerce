@@ -6,7 +6,9 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -14,15 +16,13 @@ use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
-use Filament\Actions\ForceDeleteAction;
-use Filament\Actions\RestoreAction;
 use Illuminate\Database\Eloquent\Builder;
 
 class ProductsTable
 {
     public static function configure(Table $table): Table
     {
-        return $table->modifyQueryUsing(fn(Builder $query) => $query->with(['brand', 'taxClass']))
+        return $table->modifyQueryUsing(fn (Builder $query) => $query->with(['brand', 'taxClass']))
             ->columns([
                 TextColumn::make('name')
                     ->searchable()
@@ -49,32 +49,28 @@ class ProductsTable
 
                 TextColumn::make('stock_status')
                     ->badge()
-                    ->color(fn(string $state): string => match ($state) {
-                        'in_stock'     => 'success',
+                    ->color(fn (string $state): string => match ($state) {
+                        'in_stock' => 'success',
                         'out_of_stock' => 'danger',
                         'on_backorder' => 'warning',
-                        default        => 'gray',
+                        default => 'gray',
                     }),
 
                 TextColumn::make('status')
                     ->badge()
-                    ->color(fn(string $state): string => match ($state) {
+                    ->color(fn (string $state): string => match ($state) {
                         'published' => 'success',
-                        'draft'     => 'gray',
-                        'pending'   => 'warning',
-                        'private'   => 'info',
-                        default     => 'gray',
+                        'draft' => 'gray',
+                        'pending' => 'warning',
+                        'private' => 'info',
+                        default => 'gray',
                     }),
-
 
                 TextColumn::make('taxClass.name')
                     ->label('کلاس مالیاتی')
                     ->badge()
                     ->placeholder('سراسری')
                     ->toggleable(isToggledHiddenByDefault: true),
-
-
-
 
                 IconColumn::make('is_featured')
                     ->boolean()
@@ -88,29 +84,27 @@ class ProductsTable
             ->filters([
                 SelectFilter::make('type')
                     ->options([
-                        'simple'       => 'Simple',
-                        'variable'     => 'Variable',
-                        'grouped'      => 'Grouped',
-                        'external'     => 'External',
+                        'simple' => 'Simple',
+                        'variable' => 'Variable',
+                        'grouped' => 'Grouped',
+                        'external' => 'External',
                         'downloadable' => 'Downloadable',
                     ]),
                 SelectFilter::make('status')
                     ->options([
-                        'draft'     => 'Draft',
+                        'draft' => 'Draft',
                         'published' => 'Published',
-                        'pending'   => 'Pending',
-                        'private'   => 'Private',
+                        'pending' => 'Pending',
+                        'private' => 'Private',
                     ]),
                 SelectFilter::make('tax_class_id')
                     ->label('کلاس مالیاتی')
                     ->relationship('taxClass', 'name')
-                    ->preload(),
-
+                    ->searchable(),
 
                 SelectFilter::make('brand')
                     ->relationship('brand', 'name')
-                    ->searchable()
-                    ->preload(),
+                    ->searchable(),
                 TernaryFilter::make('is_featured'),
                 TrashedFilter::make(),
             ])

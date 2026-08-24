@@ -1,273 +1,57 @@
 <?php
-// app/Filament/Resources/Products/Concerns/ConfiguresProductVariations.php
-namespace App\Filament\Resources\Products\Concerns;
 
-use App\Filament\Resources\Products\Schemas\ProductForm;
+namespace App\Filament\Resources\Concerns;
+
+use App\Enums\InventoryOperation;
 use App\Models\Product;
+use App\Services\Catalog\ProductVariantService;
+use App\Services\Inventory\InventoryService;
 use Illuminate\Support\Arr;
-use Filament\Notifications\Notification;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Log;
 
 trait ConfiguresProductVariations
 {
     protected array $variationAttributesState = [];
+
     protected array $variationsState = [];
 
-    /** state ریپیترها را از $data جدا می‌کند تا Eloquent سعی نکند ستون بسازد */
+    protected ?int $requestedStockQuantity = null;
+
+    public function hasDatabaseTransactions(): bool
+    {
+        return true;
+    }
+
     protected function extractVariationState(array $data): array
     {
+        $this->requestedStockQuantity = array_key_exists('stock_quantity', $data) ? (int) Arr::pull($data, 'stock_quantity') : null;
+        Arr::forget($data, 'stock_status');
         $this->variationAttributesState = Arr::pull($data, 'variation_attributes') ?? [];
-        $this->variationsState          = Arr::pull($data, 'variations') ?? [];
+        $this->variationsState = Arr::pull($data, 'variations') ?? [];
 
         return $data;
     }
 
-    // protected function persistVariations(Product $product): void
-    // {
-    //     if ($product->type !== 'variable') {
-    //         return;
-    //     }
+    protected function persistProductInventory(Product $product, bool $opening): void
+    {
+        if ($product->type === 'variable' || $this->requestedStockQuantity === null) {
+            return;
+        }
+        app(InventoryService::class)->setOnHand($product, $this->requestedStockQuantity, $opening ? InventoryOperation::OpeningStock : InventoryOperation::ManualAdjustment);
+    }
 
-    //     // ۱) attribute_product
-    //     $sync = [];
-    //     foreach (array_values($this->variationAttributesState) as $i => $row) {
-    //         if (empty($row['attribute_id'])) {
-    //             continue;
-    //         }
-    //         $sync[(int) $row['attribute_id']] = ['sort_order' => $i];
-    //     }
-    //     $product->attributes()->sync($sync);
-
-    //     // ۲) product_variations + attribute_value_product_variation
-    //     $keptIds = [];
-
-    //     foreach ($this->variationsState as $row) {
-    //         $valueIds = ProductForm::normalizeIds($row['attribute_value_ids'] ?? '');
-    //         if (empty($valueIds)) {
-    //             continue;
-    //         }
-
-    //         $isDismissed = (bool) ($row['is_dismissed'] ?? false);
-
-    //         $variation = filled($row['id'] ?? null)
-    //             ? $product->variations()->find($row['id']) ?? $product->variations()->make()
-    //             : $product->variations()->make();
-
-    //         $variation->fill([
-    //             'sku'            => $row['sku'] ?? null,
-    //             'price'          => $row['price'] ?? 0,
-    //             'sale_price'     => $row['sale_price'] ?? null,
-    //             'stock_quantity' => $row['stock_quantity'] ?? 0,
-    //             'is_active'      => $isDismissed ? false : (bool) ($row['is_active'] ?? true),
-    //             'is_dismissed'   => $isDismissed,
-    //         ])->product()->associate($product);
-
-    //         $variation->save();
-
-    //         // ترکیب همیشه ذخیره می‌شود؛ حتی برای dismiss شده‌ها تا قابل بازگردانی باشد
-    //         $variation->attributeValues()->sync($valueIds);
-
-    //         $keptIds[] = $variation->id;
-    //     }
-
-    //     // هرچه از repeater ناپدید شده → غیرفعال، نه حذف فیزیکی
-    //     $product->variations()
-    //         ->when($keptIds, fn($q) => $q->whereNotIn('id', $keptIds))
-    //         ->update(['is_active' => false, 'is_dismissed' => true]);
-    // }
-
-    // protected function persistVariations(Product $product): void
-    // {
-    //     if ($product->type !== 'variable') {
-    //         return;
-    //     }
-
-    //     // ۱) attribute_product
-    //     $sync = [];
-    //     foreach (array_values($this->variationAttributesState) as $i => $row) {
-    //         if (empty($row['attribute_id'])) {
-    //             continue;
-    //         }
-    //         $sync[(int) $row['attribute_id']] = ['sort_order' => $i];
-    //     }
-    //     $product->attributes()->sync($sync);
-
-    //     // ۱-ب) attribute_value_product ← انتخاب‌های سطح محصول (Step 1)
-    //     $selectedValueIds = collect($this->variationAttributesState)
-    //         ->flatMap(fn($row) => ProductForm::normalizeIds($row['value_ids'] ?? ''))
-    //         ->map(fn($id) => (int) $id)
-    //         ->unique()
-    //         ->values()
-    //         ->all();
-
-    //     $product->attributeValues()->sync($selectedValueIds);
-
-    //     // ۲) product_variations + attribute_value_product_variation
-    //     $keptIds = [];
-
-    //     foreach ($this->variationsState as $row) {
-    //         $valueIds = ProductForm::normalizeIds($row['attribute_value_ids'] ?? '');
-    //         if (empty($valueIds)) {
-    //             continue;
-    //         }
-
-    //         $isDismissed = (bool) ($row['is_dismissed'] ?? false);
-
-    //         /** @var \App\Models\ProductVariation $variation */
-    //         $variation = filled($row['id'] ?? null)
-    //             ? $product->variations()->find($row['id']) ?? $product->variations()->make()
-    //             : $product->variations()->make();
-
-    //         $variation->fill([
-    //             'sku'            => $row['sku'] ?? null,
-    //             'price'          => $row['price'] ?? 0,
-    //             'sale_price'     => $row['sale_price'] ?? null,
-    //             'stock_quantity' => $row['stock_quantity'] ?? 0,
-    //             'is_active'      => $isDismissed ? false : (bool) ($row['is_active'] ?? true),
-    //             'is_dismissed'   => $isDismissed,
-    //         ])->product()->associate($product);
-
-    //         $variation->save();
-
-    //         // ترکیب همیشه ذخیره می‌شود، حتی برای dismiss شده‌ها تا قابل بازگردانی باشد
-    //         $variation->attributeValues()->sync($valueIds);
-
-    //         $keptIds[] = $variation->id;
-    //     }
-
-    // // ۳) هرچه از repeater ناپدید شده
-    //     /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\ProductVariation> $stale */
-    //     $stale = $product->variations()
-    //         ->when($keptIds, fn($q) => $q->whereNotIn('id', $keptIds))
-    //         ->withCount('orderItems')
-    //         ->get();
-
-    //     foreach ($stale as $variation) {
-    //         if ($variation->order_items_count > 0) {
-    //             $variation->update(['is_active' => false, 'is_dismissed' => true]);
-    //             continue;
-    //         }
-
-    //         $variation->attributeValues()->detach();
-    //         $variation->delete();
-    //     }
-    // }
     protected function persistVariations(Product $product): void
     {
         if ($product->type !== 'variable') {
             return;
         }
 
-        $invalidRows = 0;
-
-        DB::transaction(function () use ($product, &$invalidRows) {
-            // ۱) attribute_product
-            $sync = [];
-            foreach (array_values($this->variationAttributesState) as $i => $row) {
-                if (empty($row['attribute_id'])) {
-                    continue;
-                }
-                $sync[(int) $row['attribute_id']] = ['sort_order' => $i];
-            }
-            $product->attributes()->sync($sync);
-
-            // ۱-ب) attribute_value_product ← انتخاب‌های سطح محصول (Step 1)
-            $selectedValueIds = collect($this->variationAttributesState)
-                ->flatMap(fn($row) => ProductForm::normalizeIds($row['value_ids'] ?? ''))
-                ->map(fn($id) => (int) $id)
-                ->unique()
-                ->values()
-                ->all();
-
-            $product->attributeValues()->sync($selectedValueIds);
-
-            // ۲) product_variations + attribute_value_product_variation
-            $keptIds      = [];
-            $expectedAxes = count($sync);
-
-            foreach ($this->variationsState as $row) {
-                $valueIds = ProductForm::normalizeIds($row['attribute_value_ids'] ?? '');
-
-                if (empty($valueIds)) {
-                    continue;
-                }
-
-                // گارد: هر واریشن باید دقیقاً یک مقدار از هر محور داشته باشد
-                if ($expectedAxes > 0 && count($valueIds) !== $expectedAxes) {
-                    $invalidRows++;
-
-                    Log::warning('Skipped malformed variation row', [
-                        'product_id' => $product->id,
-                        'expected'   => $expectedAxes,
-                        'actual'     => count($valueIds),
-                        'value_ids'  => $valueIds,
-                        'row_id'     => $row['id'] ?? null,
-                    ]);
-
-                    // ردیف موجود را نگه دار تا در مرحله ۳ حذف نشود
-                    if (filled($row['id'] ?? null)) {
-                        $keptIds[] = (int) $row['id'];
-                    }
-
-                    continue;
-                }
-
-                $isDismissed = (bool) ($row['is_dismissed'] ?? false);
-
-                /** @var \App\Models\ProductVariation $variation */
-                $variation = filled($row['id'] ?? null)
-                    ? $product->variations()->find($row['id']) ?? $product->variations()->make()
-                    : $product->variations()->make();
-
-                $variation->fill([
-                    'sku'            => $row['sku'] ?? null,
-                    'price'          => $row['price'] ?? 0,
-                    'sale_price'     => $row['sale_price'] ?? null,
-                    'stock_quantity' => $row['stock_quantity'] ?? 0,
-                    'is_active'      => $isDismissed ? false : (bool) ($row['is_active'] ?? true),
-                    'is_dismissed'   => $isDismissed,
-                ])->product()->associate($product);
-
-                $variation->save();
-
-                // ترکیب همیشه ذخیره می‌شود، حتی برای dismiss شده‌ها تا قابل بازگردانی باشد
-                $variation->attributeValues()->sync($valueIds);
-
-                $keptIds[] = $variation->id;
-            }
-
-        // ۳) هرچه از repeater ناپدید شده
-            /** @var \Illuminate\Database\Eloquent\Collection<int, \App\Models\ProductVariation> $stale */
-            $stale = $product->variations()
-                ->when($keptIds, fn($q) => $q->whereNotIn('id', $keptIds))
-                ->withCount('orderItems')
-                ->get();
-
-            foreach ($stale as $variation) {
-                if ($variation->order_items_count > 0) {
-                    $variation->update(['is_active' => false, 'is_dismissed' => true]);
-                    continue;
-                }
-
-                $variation->attributeValues()->detach();
-                $variation->delete();
-            }
-        });
-
-        if ($invalidRows > 0) {
-            Notification::make()
-                ->warning()
-                ->title('برخی واریشن‌ها ذخیره نشدند')
-                ->body("{$invalidRows} ردیف ترکیب ناقص داشتند و نادیده گرفته شدند.")
-                ->persistent()
-                ->send();
-        }
+        app(ProductVariantService::class)->synchronize(
+            $product,
+            $this->variationAttributesState,
+            $this->variationsState,
+        );
     }
 
-
-
-    /** پرکردن فرم در صفحه Edit از جداول واسط */
     protected function hydrateVariationState(array $data, Product $product): array
     {
         if ($product->type !== 'variable') {
@@ -277,27 +61,31 @@ trait ConfiguresProductVariations
         $product->load(['attributes', 'variations.attributeValues']);
 
         $valuesByAttribute = $product->variations
-            ->flatMap(fn($v) => $v->attributeValues)
+            ->flatMap(fn ($variation) => $variation->attributeValues)
             ->groupBy('attribute_id')
-            ->map(fn($g) => $g->pluck('id')->unique()->values()->all());
+            ->map(fn ($values) => $values->pluck('id')->unique()->values()->all());
 
         $data['variation_attributes'] = $product->attributes
-            ->map(fn($a) => [
-                'attribute_id' => $a->id,
-                'value_ids'    => $valuesByAttribute->get($a->id, []),
-            ])->values()->all();
+            ->map(fn ($attribute) => [
+                'attribute_id' => $attribute->id,
+                'value_ids' => $valuesByAttribute->get($attribute->id, []),
+            ])
+            ->values()
+            ->all();
 
         $data['variations'] = $product->variations
-            ->map(fn($v) => [
-                'id'                  => $v->id,
-                'attribute_value_ids' => $v->attributeValues->pluck('id')->implode(','),
-                'sku'                 => $v->sku,
-                'price'               => $v->price,
-                'sale_price'          => $v->sale_price,
-                'stock_quantity'      => $v->stock_quantity,
-                'is_active'           => $v->is_active,
-                'is_dismissed'        => $v->is_dismissed,
-            ])->values()->all();
+            ->map(fn ($variation) => [
+                'id' => $variation->id,
+                'attribute_value_ids' => $variation->attributeValues->pluck('id')->implode(','),
+                'sku' => $variation->sku,
+                'price' => $variation->price,
+                'sale_price' => $variation->sale_price,
+                'stock_quantity' => $variation->stock_quantity,
+                'is_active' => $variation->is_active,
+                'is_dismissed' => $variation->is_dismissed,
+            ])
+            ->values()
+            ->all();
 
         return $data;
     }

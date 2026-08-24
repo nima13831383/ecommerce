@@ -2,37 +2,38 @@
 
 namespace App\Filament\Resources\Products\Schemas;
 
-use Filament\Forms\Components\DateTimePicker;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\Textarea;
-use Filament\Forms\Components\TextInput;
-use Filament\Forms\Components\Toggle;
-use Filament\Forms\Components\Repeater;
-use Filament\Forms\Components\FileUpload;
-use Filament\Forms\Components\Placeholder;
-use Filament\Forms\Components\Hidden;
-use Filament\Schemas\Components\Tabs;
-use Filament\Schemas\Components\Tabs\Tab;
-use Filament\Schemas\Components\Utilities\Get;
-use Filament\Schemas\Components\Actions;
-use Filament\Schemas\Schema;
-use Filament\Actions\Action;
-use Filament\Notifications\Notification;
-use Filament\Support\Icons\Heroicon;
-use Illuminate\Support\Str;
-use Illuminate\Validation\Rule;
+use App\Enums\TaxType;
+use App\Filament\Resources\TaxClasses\Schemas\TaxClassForm;
 use App\Models\Attribute;
 use App\Models\AttributeValue;
 use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Tag;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Validation\Rules\Unique;
-// app/Filament/Resources/Products/Schemas/ProductForm.php
-use App\Enums\TaxType;
 use App\Models\TaxClass;
-
+use Filament\Actions\Action;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\FileUpload;
+use Filament\Forms\Components\Hidden;
+use Filament\Forms\Components\Placeholder;
+use Filament\Forms\Components\Repeater;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
+use Filament\Notifications\Notification;
+use Filament\Schemas\Components\Actions;
+use Filament\Schemas\Components\Component;
+use Filament\Schemas\Components\Tabs;
+use Filament\Schemas\Components\Tabs\Tab;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Illuminate\Database\Eloquent\Builder;
+// app/Filament/Resources/Products/Schemas/ProductForm.php
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Unique;
 
 class ProductForm
 {
@@ -67,10 +68,10 @@ class ProductForm
                 Select::make('type')
                     ->label('Product type')
                     ->options([
-                        'simple'       => 'Simple product',
-                        'variable'     => 'Variable product',
-                        'grouped'      => 'Grouped product',
-                        'external'     => 'External / Affiliate',
+                        'simple' => 'Simple product',
+                        'variable' => 'Variable product',
+                        'grouped' => 'Grouped product',
+                        'external' => 'External / Affiliate',
                         'downloadable' => 'Downloadable',
                     ])
                     ->default('simple')
@@ -81,7 +82,7 @@ class ProductForm
                 TextInput::make('name')
                     ->required()
                     ->live(onBlur: true)
-                    ->afterStateUpdated(fn($state, callable $set) => $set('slug', static::makeSlug($state, 'product')))
+                    ->afterStateUpdated(fn ($state, callable $set) => $set('slug', static::makeSlug($state, 'product')))
                     ->maxLength(255),
 
                 // این یکی در فرم اصلی است، پس unique(ignoreRecord: true) درست کار می‌کند
@@ -100,10 +101,10 @@ class ProductForm
     {
         return Tab::make('Pricing')
             ->icon(Heroicon::OutlinedBanknotes)
-            ->visible(fn(Get $get) => in_array($get('type'), ['simple', 'external', 'downloadable']))
+            ->visible(fn (Get $get) => in_array($get('type'), ['simple', 'external', 'downloadable']))
             ->schema([
-                TextInput::make('price')->numeric()->required()->prefix('IRR'),
-                TextInput::make('sale_price')->numeric()->prefix('IRR'),
+                TextInput::make('price')->numeric()->step(1)->minValue(0)->required()->prefix('IRR'),
+                TextInput::make('sale_price')->numeric()->step(1)->minValue(0)->prefix('IRR'),
                 DateTimePicker::make('sale_starts_at'),
                 DateTimePicker::make('sale_ends_at'),
             ])
@@ -114,20 +115,27 @@ class ProductForm
     {
         return Tab::make('Inventory')
             ->icon(Heroicon::OutlinedArchiveBox)
-            ->visible(fn(Get $get) => in_array($get('type'), ['simple', 'variable', 'downloadable']))
+            ->visible(fn (Get $get) => in_array($get('type'), ['simple', 'variable', 'downloadable']))
             ->schema([
                 TextInput::make('sku')->label('SKU')->maxLength(255),
-                Toggle::make('manage_stock')->default(true)->live(),
+                Placeholder::make('variable_inventory_notice')
+                    ->label('موجودی محصول متغیر')
+                    ->content('موجودی و وضعیت فروش محصول متغیر از تنوع‌های فعال آن مدیریت می‌شود.')
+                    ->visible(fn (Get $get) => $get('type') === 'variable')
+                    ->columnSpanFull(),
+                Toggle::make('manage_stock')->default(true)->live()
+                    ->visible(fn (Get $get) => $get('type') !== 'variable'),
                 TextInput::make('stock_quantity')->numeric()->default(0)
-                    ->visible(fn(Get $get) => $get('manage_stock')),
+                    ->visible(fn (Get $get) => $get('type') !== 'variable' && $get('manage_stock')),
                 Select::make('stock_status')
                     ->options([
-                        'in_stock'     => 'In stock',
+                        'in_stock' => 'In stock',
                         'out_of_stock' => 'Out of stock',
                         'on_backorder' => 'On backorder',
-                    ])->default('in_stock')->required(),
+                    ])->default('in_stock')->required()
+                    ->visible(fn (Get $get) => $get('type') !== 'variable'),
                 TextInput::make('low_stock_threshold')->numeric()
-                    ->visible(fn(Get $get) => $get('manage_stock')),
+                    ->visible(fn (Get $get) => $get('type') !== 'variable' && $get('manage_stock')),
             ])
             ->columns(2);
     }
@@ -136,7 +144,7 @@ class ProductForm
     {
         return Tab::make('Shipping')
             ->icon(Heroicon::OutlinedTruck)
-            ->visible(fn(Get $get) => in_array($get('type'), ['simple', 'variable']) && ! $get('is_virtual'))
+            ->visible(fn (Get $get) => in_array($get('type'), ['simple', 'variable']) && ! $get('is_virtual'))
             ->schema([
                 TextInput::make('weight')->numeric()->suffix('kg'),
             ])
@@ -147,7 +155,7 @@ class ProductForm
     {
         return Tab::make('External')
             ->icon(Heroicon::OutlinedArrowTopRightOnSquare)
-            ->visible(fn(Get $get) => $get('type') === 'external')
+            ->visible(fn (Get $get) => $get('type') === 'external')
             ->schema([
                 TextInput::make('external_url')->url()->required()->columnSpanFull(),
                 TextInput::make('button_text')->default('Buy now')->maxLength(255),
@@ -159,7 +167,7 @@ class ProductForm
     {
         return Tab::make('Downloads')
             ->icon(Heroicon::OutlinedArrowDownTray)
-            ->visible(fn(Get $get) => $get('type') === 'downloadable')
+            ->visible(fn (Get $get) => $get('type') === 'downloadable')
             ->schema([
                 Toggle::make('is_virtual')->default(true),
                 Toggle::make('is_downloadable')->default(true),
@@ -185,7 +193,7 @@ class ProductForm
     {
         return Tab::make('Grouped products')
             ->icon(Heroicon::OutlinedSquares2x2)
-            ->visible(fn(Get $get) => $get('type') === 'grouped')
+            ->visible(fn (Get $get) => $get('type') === 'grouped')
             ->schema([
                 Select::make('grouped_products')
                     ->relationship('groupedChildren', 'name')
@@ -198,7 +206,7 @@ class ProductForm
     {
         return Tab::make('Variations')
             ->icon(Heroicon::OutlinedAdjustmentsHorizontal)
-            ->visible(fn(Get $get) => $get('type') === 'variable')
+            ->visible(fn (Get $get) => $get('type') === 'variable')
             ->schema([
 
                 // ── Step 1: ویژگی‌ها و مقادیر ──
@@ -208,13 +216,20 @@ class ProductForm
                     ->schema([
                         Select::make('attribute_id')
                             ->label('Attribute')
-                            ->options(fn() => Attribute::where('is_variation', 1)
-                                ->orderBy('sort_order')->orderBy('name')->pluck('name', 'id'))
+                            ->getSearchResultsUsing(fn (string $search): array => Attribute::query()
+                                ->where('is_variation', true)
+                                ->where('name', 'like', "%{$search}%")
+                                ->orderBy('sort_order')
+                                ->orderBy('name')
+                                ->limit(50)
+                                ->pluck('name', 'id')
+                                ->all())
+                            ->getOptionLabelUsing(fn ($value): ?string => Attribute::find($value)?->name)
                             ->required()->live()->distinct()->searchable()
                             ->disableOptionsWhenSelectedInSiblingRepeaterItems()
                             ->createOptionForm([
                                 TextInput::make('name')->required()->live(onBlur: true)
-                                    ->afterStateUpdated(fn($state, callable $set) => $set('slug', static::makeSlug($state, 'attr'))),
+                                    ->afterStateUpdated(fn ($state, callable $set) => $set('slug', static::makeSlug($state, 'attr'))),
 
                                 // ⚠️ داخل مدال از unique() فیلامنت استفاده نمی‌کنیم؛
                                 // چون رکورد جاری (Product) را وارد کوئری می‌کند و SQL خراب می‌شود.
@@ -225,25 +240,33 @@ class ProductForm
 
                                 Toggle::make('is_variation')->label('برای واریشن استفاده شود')->default(true),
                             ])
-                            ->createOptionUsing(fn(array $data) => Attribute::create($data)->getKey()),
+                            ->createOptionUsing(fn (array $data) => Attribute::create($data)->getKey()),
 
                         Select::make('value_ids')
                             ->label('Values')
                             ->multiple()->required()->live()->searchable()
-                            ->options(fn(Get $get) => filled($get('attribute_id'))
+                            ->getSearchResultsUsing(fn (string $search, Get $get): array => filled($get('attribute_id'))
                                 ? AttributeValue::where('attribute_id', $get('attribute_id'))
-                                ->orderBy('sort_order')->pluck('value', 'id')
+                                    ->where('value', 'like', "%{$search}%")
+                                    ->orderBy('sort_order')
+                                    ->limit(50)
+                                    ->pluck('value', 'id')
+                                    ->all()
                                 : [])
+                            ->getOptionLabelsUsing(fn (array $values): array => AttributeValue::query()
+                                ->whereIn('id', $values)
+                                ->pluck('value', 'id')
+                                ->all())
                             ->createOptionForm([
                                 TextInput::make('value')->required()->live(onBlur: true)
-                                    ->afterStateUpdated(fn($state, callable $set) => $set('slug', static::makeSlug($state, 'value'))),
+                                    ->afterStateUpdated(fn ($state, callable $set) => $set('slug', static::makeSlug($state, 'value'))),
 
                                 // یکتایی در محدوده همان attribute؛ اگر attribute_id پیدا نشد، unique ساده
                                 TextInput::make('slug')
                                     ->required()
                                     ->maxLength(255)
                                     ->rule(function (Get $get) {
-                                        $rule        = Rule::unique('attribute_values', 'slug');
+                                        $rule = Rule::unique('attribute_values', 'slug');
                                         $attributeId = static::resolveAttributeId($get);
 
                                         return $attributeId
@@ -281,7 +304,7 @@ class ProductForm
                         ->modalDescription('ترکیب‌های جدید اضافه می‌شوند. واریشن‌های موجود دست‌نخورده می‌مانند.')
                         ->action(function (Get $get, $set) {
                             $rows = collect($get('variation_attributes') ?? [])
-                                ->filter(fn($r) => ! empty($r['attribute_id']) && ! empty($r['value_ids']));
+                                ->filter(fn ($r) => ! empty($r['attribute_id']) && ! empty($r['value_ids']));
 
                             if ($rows->isEmpty()) {
                                 Notification::make()->warning()->title('هیچ ویژگی معتبری انتخاب نشده')->send();
@@ -289,9 +312,24 @@ class ProductForm
                                 return;
                             }
 
-                            $combos   = static::cartesian($rows->pluck('value_ids')->values()->all());
+                            $combinationCount = $rows
+                                ->pluck('value_ids')
+                                ->reduce(fn (int $count, array $valueIds) => $count * count($valueIds), 1);
+
+                            if ($combinationCount > 100) {
+                                Notification::make()
+                                    ->warning()
+                                    ->title('تولید تنوع متوقف شد')
+                                    ->body("این انتخاب {$combinationCount} ترکیب تولید می‌کند. برای جلوگیری از ایجاد ناخواسته تعداد زیاد، مقادیر را محدود کنید.")
+                                    ->persistent()
+                                    ->send();
+
+                                return;
+                            }
+
+                            $combos = static::cartesian($rows->pluck('value_ids')->values()->all());
                             $existing = collect($get('variations') ?? []);
-                            $known    = $existing->map(fn($v) => static::comboKey($v['attribute_value_ids'] ?? ''))->all();
+                            $known = $existing->map(fn ($v) => static::comboKey($v['attribute_value_ids'] ?? ''))->all();
 
                             $new = [];
                             foreach ($combos as $combo) {
@@ -299,20 +337,20 @@ class ProductForm
                                     continue;
                                 }
                                 $new[] = [
-                                    'id'                  => null,
+                                    'id' => null,
                                     'attribute_value_ids' => implode(',', array_map('intval', $combo)),
-                                    'sku'                 => null,
-                                    'price'               => $get('price') ?? 0,
-                                    'sale_price'          => null,
-                                    'stock_quantity'      => 0,
-                                    'is_active'           => true,
-                                    'is_dismissed'        => false,
+                                    'sku' => null,
+                                    'price' => $get('price') ?? 0,
+                                    'sale_price' => null,
+                                    'stock_quantity' => 0,
+                                    'is_active' => true,
+                                    'is_dismissed' => false,
                                 ];
                             }
 
                             $set('variations', [...$existing->all(), ...$new]);
 
-                            Notification::make()->success()->title(count($new) . ' واریشن جدید ساخته شد')->send();
+                            Notification::make()->success()->title(count($new).' واریشن جدید ساخته شد')->send();
                         }),
 
                     Action::make('addVariationManually')
@@ -321,7 +359,7 @@ class ProductForm
                         ->color('gray')
                         ->schema(function (Get $get): array {
                             $rows = collect($get('variation_attributes') ?? [])
-                                ->filter(fn($r) => ! empty($r['attribute_id']) && ! empty($r['value_ids']));
+                                ->filter(fn ($r) => ! empty($r['attribute_id']) && ! empty($r['value_ids']));
 
                             return $rows->map(function (array $row) {
                                 $attribute = Attribute::find($row['attribute_id']);
@@ -344,23 +382,23 @@ class ProductForm
                             }
 
                             $existing = collect($get('variations') ?? []);
-                            $key      = static::comboKey($valueIds);
+                            $key = static::comboKey($valueIds);
 
-                            if ($existing->contains(fn($v) => static::comboKey($v['attribute_value_ids'] ?? '') === $key)) {
+                            if ($existing->contains(fn ($v) => static::comboKey($v['attribute_value_ids'] ?? '') === $key)) {
                                 Notification::make()->warning()->title('این ترکیب از قبل وجود دارد')->send();
 
                                 return;
                             }
 
                             $set('variations', [...$existing->all(), [
-                                'id'                  => null,
+                                'id' => null,
                                 'attribute_value_ids' => implode(',', $valueIds),
-                                'sku'                 => null,
-                                'price'               => $get('price') ?? 0,
-                                'sale_price'          => null,
-                                'stock_quantity'      => 0,
-                                'is_active'           => true,
-                                'is_dismissed'        => false,
+                                'sku' => null,
+                                'price' => $get('price') ?? 0,
+                                'sale_price' => null,
+                                'stock_quantity' => 0,
+                                'is_active' => true,
+                                'is_dismissed' => false,
                             ]]);
 
                             Notification::make()->success()->title('واریشن اضافه شد')->send();
@@ -377,12 +415,12 @@ class ProductForm
 
                         Placeholder::make('combination')
                             ->label('ترکیب')
-                            ->content(fn(Get $get) => static::comboLabel($get('attribute_value_ids')))
+                            ->content(fn (Get $get) => static::comboLabel($get('attribute_value_ids')))
                             ->columnSpanFull(),
 
                         TextInput::make('sku')->maxLength(100),
-                        TextInput::make('price')->numeric()->required()->prefix('﷼'),
-                        TextInput::make('sale_price')->numeric()->prefix('﷼')->lte('price'),
+                        TextInput::make('price')->numeric()->step(1)->minValue(0)->required()->prefix('﷼'),
+                        TextInput::make('sale_price')->numeric()->step(1)->minValue(0)->prefix('﷼')->lte('price'),
                         TextInput::make('stock_quantity')->label('Stock')->numeric()->default(0),
                         Toggle::make('is_active')->label('Active')->default(true)->inline(false),
                     ])
@@ -394,15 +432,15 @@ class ProductForm
                     })
                     ->extraItemActions([
                         Action::make('toggleDismiss')
-                            ->icon(fn(array $arguments, Repeater $component): string => ($component->getRawItemState($arguments['item'])['is_dismissed'] ?? false)
+                            ->icon(fn (array $arguments, Repeater $component): string => ($component->getRawItemState($arguments['item'])['is_dismissed'] ?? false)
                                 ? 'heroicon-o-arrow-uturn-left' : 'heroicon-o-x-circle')
-                            ->color(fn(array $arguments, Repeater $component): string => ($component->getRawItemState($arguments['item'])['is_dismissed'] ?? false)
+                            ->color(fn (array $arguments, Repeater $component): string => ($component->getRawItemState($arguments['item'])['is_dismissed'] ?? false)
                                 ? 'success' : 'danger')
                             ->action(function (array $arguments, Repeater $component): void {
-                                $path     = $component->getStatePath();
-                                $key      = $arguments['item'];
+                                $path = $component->getStatePath();
+                                $key = $arguments['item'];
                                 $livewire = $component->getLivewire();
-                                $current  = (bool) data_get($livewire, "{$path}.{$key}.is_dismissed", false);
+                                $current = (bool) data_get($livewire, "{$path}.{$key}.is_dismissed", false);
                                 data_set($livewire, "{$path}.{$key}.is_dismissed", ! $current);
                             }),
                     ])
@@ -458,9 +496,8 @@ class ProductForm
                     ->label('Brand')
                     ->relationship('brand', 'name')
                     ->searchable()
-                    ->preload()
                     ->createOptionForm(self::brandFormSchema())
-                    ->createOptionUsing(fn(array $data) => Brand::create($data)->getKey())
+                    ->createOptionUsing(fn (array $data) => Brand::create($data)->getKey())
                     ->editOptionForm(self::brandFormSchema())
                     ->createOptionModalHeading('برند جدید')
                     ->editOptionModalHeading('ویرایش برند'),
@@ -470,9 +507,8 @@ class ProductForm
                     ->relationship('categories', 'name')
                     ->multiple()
                     ->searchable()
-                    ->preload()
                     ->createOptionForm(self::categoryFormSchema())
-                    ->createOptionUsing(fn(array $data) => Category::create($data)->getKey())
+                    ->createOptionUsing(fn (array $data) => Category::create($data)->getKey())
                     ->editOptionForm(self::categoryFormSchema())
                     ->createOptionModalHeading('دسته‌بندی جدید')
                     ->editOptionModalHeading('ویرایش دسته‌بندی')
@@ -483,35 +519,34 @@ class ProductForm
                     ->relationship('tags', 'name')
                     ->multiple()
                     ->searchable()
-                    ->preload()
                     ->createOptionForm(self::tagFormSchema())
-                    ->createOptionUsing(fn(array $data) => Tag::create($data)->getKey())
+                    ->createOptionUsing(fn (array $data) => Tag::create($data)->getKey())
                     ->editOptionForm(self::tagFormSchema())
                     ->createOptionModalHeading('تگ جدید')
                     ->columnSpanFull(),
-
-
 
                 Select::make('tax_class_id')
                     ->label('کلاس مالیاتی')
                     ->relationship(
                         name: 'taxClass',
                         titleAttribute: 'name',
-                        modifyQueryUsing: fn(Builder $query) => $query->where('is_active', true),
+                        modifyQueryUsing: fn (Builder $query) => $query->where('is_active', true),
                     )
-                    ->getOptionLabelFromRecordUsing(fn(TaxClass $record): string => sprintf(
+                    ->getOptionLabelFromRecordUsing(fn (TaxClass $record): string => sprintf(
                         '%s (%s)',
                         $record->name,
-                        TaxType::parse($record->type) === TaxType::Percent
-                            ? rtrim(rtrim((string) $record->value, '0'), '.') . '%'
-                            : number_format((float) $record->value) . ' ریال',
+                        TaxClassForm::formatValue($record),
                     ))
-                    ->default(fn(): ?int => TaxClass::query()
+                    ->getOptionLabelFromRecordUsing(fn (TaxClass $record): string => sprintf(
+                        '%s (%s)',
+                        $record->name,
+                        TaxClassForm::formatValue($record),
+                    ))
+                    ->default(fn (): ?int => TaxClass::query()
                         ->where('is_default', true)
                         ->where('is_active', true)
                         ->value('id'))
                     ->searchable()
-                    ->preload()
                     ->native(false)
                     ->nullable()
                     ->helperText('خالی بگذارید تا مالیات از تنظیمات سراسری فروشگاه محاسبه شود.')
@@ -529,12 +564,13 @@ class ProductForm
                             ->numeric()
                             ->required()
                             ->minValue(0)
-                            ->maxValue(fn(Get $get): ?int => TaxType::parse($get('type')) === TaxType::Percent ? 100 : null)
-                            ->suffix(fn(Get $get): ?string => TaxType::parse($get('type'))?->affix()),
+                            ->maxValue(fn (Get $get): ?int => TaxType::parse($get('type')) === TaxType::Percent ? 100 : null)
+                            ->suffix(fn (Get $get): ?string => TaxType::parse($get('type'))?->affix()),
                         Toggle::make('is_active')->label('فعال')->default(true),
                     ])
+                    ->createOptionForm(TaxClassForm::fields(includeSlug: false))
                     ->createOptionUsing(function (array $data): int {
-                        $data['slug'] = str($data['name'])->slug()->value();
+                        $data['slug'] = TaxClassForm::slugFor($data['name']);
 
                         return TaxClass::create($data)->getKey();
                     }),
@@ -543,7 +579,7 @@ class ProductForm
             ->columns(2);
     }
 
-    /** @return array<\Filament\Schemas\Components\Component> */
+    /** @return array<Component> */
     protected static function brandFormSchema(): array
     {
         return [
@@ -552,13 +588,13 @@ class ProductForm
                 ->required()
                 ->maxLength(255)
                 ->live(onBlur: true)
-                ->afterStateUpdated(fn($state, callable $set) => $set('slug', static::makeSlug($state, 'brand'))),
+                ->afterStateUpdated(fn ($state, callable $set) => $set('slug', static::makeSlug($state, 'brand'))),
 
             // داخل مدال از unique() فیلامنت استفاده نمی‌کنیم (رکورد Product را وارد کوئری می‌کند)
             TextInput::make('slug')
                 ->required()
                 ->maxLength(255)
-                ->rule(fn(?Model $record) => static::uniqueSlugRule('brands', $record, softDeletes: true)),
+                ->rule(fn (?Model $record) => static::uniqueSlugRule('brands', $record, softDeletes: true)),
 
             Textarea::make('description')->rows(2)->columnSpanFull(),
 
@@ -575,14 +611,14 @@ class ProductForm
         ];
     }
 
-    /** @return array<\Filament\Schemas\Components\Component> */
+    /** @return array<Component> */
     protected static function categoryFormSchema(): array
     {
         return [
             Select::make('parent_id')
                 ->label('دستهٔ والد')
-                ->options(fn(?Model $record) => Category::query()
-                    ->when($record, fn($q) => $q->whereKeyNot($record->getKey()))
+                ->options(fn (?Model $record) => Category::query()
+                    ->when($record, fn ($q) => $q->whereKeyNot($record->getKey()))
                     ->orderBy('sort_order')->orderBy('name')
                     ->pluck('name', 'id'))
                 ->searchable()
@@ -594,12 +630,12 @@ class ProductForm
                 ->required()
                 ->maxLength(255)
                 ->live(onBlur: true)
-                ->afterStateUpdated(fn($state, callable $set) => $set('slug', static::makeSlug($state, 'category'))),
+                ->afterStateUpdated(fn ($state, callable $set) => $set('slug', static::makeSlug($state, 'category'))),
 
             TextInput::make('slug')
                 ->required()
                 ->maxLength(255)
-                ->rule(fn(?Model $record) => static::uniqueSlugRule('categories', $record, softDeletes: true)),
+                ->rule(fn (?Model $record) => static::uniqueSlugRule('categories', $record, softDeletes: true)),
 
             Textarea::make('description')->rows(2)->columnSpanFull(),
 
@@ -610,7 +646,7 @@ class ProductForm
         ];
     }
 
-    /** @return array<\Filament\Schemas\Components\Component> */
+    /** @return array<Component> */
     protected static function tagFormSchema(): array
     {
         return [
@@ -618,12 +654,12 @@ class ProductForm
                 ->required()
                 ->maxLength(255)
                 ->live(onBlur: true)
-                ->afterStateUpdated(fn($state, callable $set) => $set('slug', static::makeSlug($state, 'tag'))),
+                ->afterStateUpdated(fn ($state, callable $set) => $set('slug', static::makeSlug($state, 'tag'))),
 
             TextInput::make('slug')
                 ->required()
                 ->maxLength(255)
-                ->rule(fn(?Model $record) => static::uniqueSlugRule('tags', $record)),
+                ->rule(fn (?Model $record) => static::uniqueSlugRule('tags', $record)),
         ];
     }
 
@@ -646,7 +682,6 @@ class ProductForm
         return $rule;
     }
 
-
     protected static function seoTab(): Tab
     {
         return Tab::make('SEO')
@@ -662,10 +697,10 @@ class ProductForm
             ->schema([
                 Select::make('status')
                     ->options([
-                        'draft'     => 'Draft',
+                        'draft' => 'Draft',
                         'published' => 'Published',
-                        'pending'   => 'Pending review',
-                        'private'   => 'Private',
+                        'pending' => 'Pending review',
+                        'private' => 'Private',
                     ])
                     ->default('draft')
                     ->required(),
@@ -703,7 +738,7 @@ class ProductForm
                     ->orderColumn('sort_order')
                     ->reorderable()
                     ->collapsible()
-                    ->itemLabel(fn(array $state): ?string => $state['alt'] ?? 'Image')
+                    ->itemLabel(fn (array $state): ?string => $state['alt'] ?? 'Image')
                     ->defaultItems(1)
                     ->addActionLabel('Add image')
                     ->columnSpanFull(),
@@ -741,7 +776,7 @@ class ProductForm
             $slug = Str::slug(Str::ascii((string) $value));
         }
 
-        return blank($slug) ? $prefix . '-' . Str::lower(Str::random(6)) : $slug;
+        return blank($slug) ? $prefix.'-'.Str::lower(Str::random(6)) : $slug;
     }
 
     /** ضرب دکارتی: [[1,2],[5,6]] → [[1,5],[1,6],[2,5],[2,6]] */
@@ -776,14 +811,14 @@ class ProductForm
 
         if ($missing) {
             AttributeValue::with('attribute')->whereIn('id', $missing)->get()
-                ->each(fn($v) => static::$valueLabelCache[$v->id] = [
+                ->each(fn ($v) => static::$valueLabelCache[$v->id] = [
                     'label' => "{$v->attribute->name}: {$v->value}",
                     'order' => $v->attribute->sort_order,
                 ]);
         }
 
         return collect($ids)
-            ->map(fn($id) => static::$valueLabelCache[$id] ?? null)
+            ->map(fn ($id) => static::$valueLabelCache[$id] ?? null)
             ->filter()
             ->sortBy('order')
             ->pluck('label')

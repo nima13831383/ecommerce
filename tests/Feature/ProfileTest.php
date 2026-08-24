@@ -64,7 +64,12 @@ test('user can delete their account', function () {
         ->assertRedirect('/');
 
     $this->assertGuest();
-    $this->assertNull($user->fresh());
+    $this->assertNull(User::find($user->id));
+
+    $deletedUser = User::withTrashed()->findOrFail($user->id);
+
+    $this->assertNotNull($deletedUser->deleted_at);
+    $this->assertTrue($deletedUser->trashed());
 });
 
 test('correct password must be provided to delete account', function () {

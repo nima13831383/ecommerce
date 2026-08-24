@@ -2,11 +2,12 @@
 
 namespace App\Models;
 
+use App\Services\Tax\TaxCalculator;
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
-use App\Models\Setting;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 
 // app/Models/Product.php
 class Product extends Model
@@ -26,8 +27,6 @@ class Product extends Model
         'sale_starts_at',
         'sale_ends_at',
         'manage_stock',
-        'stock_quantity',
-        'stock_status',
         'low_stock_threshold',
         'is_downloadable',
         'is_virtual',
@@ -56,17 +55,17 @@ class Product extends Model
     ];
 
     protected $casts = [
-        'price'          => 'decimal:0',
-        'sale_price'     => 'decimal:0',
+        'price' => 'decimal:0',
+        'sale_price' => 'decimal:0',
         'sale_starts_at' => 'datetime',
-        'sale_ends_at'   => 'datetime',
-        'manage_stock'   => 'boolean',
+        'sale_ends_at' => 'datetime',
+        'manage_stock' => 'boolean',
         'is_downloadable' => 'boolean',
-        'is_virtual'     => 'boolean',
-        'is_featured'    => 'boolean',
-        'published_at'   => 'datetime',
-        'weight'         => 'decimal:2',
-        'rating_avg'     => 'decimal:2',
+        'is_virtual' => 'boolean',
+        'is_featured' => 'boolean',
+        'published_at' => 'datetime',
+        'weight' => 'decimal:2',
+        'rating_avg' => 'decimal:2',
         // 'variation_attributes' => 'array',
     ];
 
@@ -74,6 +73,7 @@ class Product extends Model
     {
         return $this->belongsTo(Brand::class);
     }
+
     // public function variations()
     // {
     //     return $this->hasMany(ProductVariation::class);
@@ -82,6 +82,7 @@ class Product extends Model
     {
         return $this->hasMany(Review::class);
     }
+
     public function questions()
     {
         return $this->hasMany(ProductQuestion::class);
@@ -103,13 +104,11 @@ class Product extends Model
     //         ->withPivot('is_variation', 'is_visible', 'sort_order');
     // }
 
-
-
-
     public function seoMeta()
     {
         return $this->morphOne(SeoMeta::class, 'seoable');
     }
+
     public function images()
     {
         return $this->hasMany(ProductImage::class)->orderBy('sort_order');
@@ -174,6 +173,7 @@ class Product extends Model
     {
         return $this->hasMany(DownloadablePermission::class);
     }
+
     public function attributes(): BelongsToMany
     {
         return $this->belongsToMany(Attribute::class, 'attribute_product')
@@ -190,8 +190,6 @@ class Product extends Model
     //     return $this->belongsToMany(AttributeValue::class, 'attribute_value_product');
     // }
 
-
-
     /** @return HasMany<ProductVariation, $this> */
     public function variations(): HasMany
     {
@@ -203,16 +201,19 @@ class Product extends Model
     {
         return $this->belongsToMany(AttributeValue::class, 'attribute_value_product');
     }
+
     public function coupons(): BelongsToMany
     {
         return $this->belongsToMany(Coupon::class)
             ->withPivot('is_excluded');
     }
+
     // app/Models/Product.php
-    public function taxClass(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    public function taxClass(): BelongsTo
     {
         return $this->belongsTo(TaxClass::class);
     }
+
     public function getEffectiveTaxClass(): ?TaxClass
     {
         if ($this->taxClass) {
@@ -222,5 +223,14 @@ class Product extends Model
         $id = Setting::getValue('default_tax_class_id', 'tax');
 
         return $id ? TaxClass::find((int) $id) : null;
+    }
+
+    public function taxAmountForPrice(int $taxableAmountRials, int $quantity = 1): int
+    {
+        return app(TaxCalculator::class)->calculateTax(
+            taxableAmountRials: $taxableAmountRials,
+            taxClass: $this->getEffectiveTaxClass(),
+            quantity: $quantity,
+        );
     }
 }

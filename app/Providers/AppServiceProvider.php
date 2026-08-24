@@ -2,11 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\User;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
-use App\Models\{Order, Shipment};
-use App\Observers\{OrderObserver, ShipmentObserver};
-
-
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,7 +21,13 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        Shipment::observe(ShipmentObserver::class);
-        Order::observe(OrderObserver::class);
+        Gate::before(function (User $user): ?bool {
+            if ($user->trashed()) {
+                return false;
+            }
+
+            return $user->hasRole('super-admin') ? true : null;
+        });
+
     }
 }

@@ -21,11 +21,10 @@ class PaymentTransaction extends Model
     ];
 
     protected $casts = [
-        'amount'           => 'decimal:0',
-        'request_payload'  => 'array',
+        'amount' => 'integer',
+        'request_payload' => 'array',
         'response_payload' => 'array',
     ];
-
 
     public function payment(): BelongsTo
     {
