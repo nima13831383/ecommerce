@@ -37,7 +37,9 @@ class Order extends Model
         'paid_total',
         'refunded_total',
         'coupon_id',
+        'coupon_snapshot',
         'shipping_method_id',
+        'shipping_snapshot',
         'tracking_number',
         'ip_address',
         'user_agent',
@@ -69,6 +71,8 @@ class Order extends Model
         'delivered_at' => 'datetime',
         'cancelled_at' => 'datetime',
         'tax_breakdown' => 'array',
+        'coupon_snapshot' => 'array',
+        'shipping_snapshot' => 'array',
     ];
 
     protected static function booted(): void

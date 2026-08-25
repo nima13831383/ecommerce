@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Model;
 // app/Models/SeoMeta.php
 class SeoMeta extends Model
 {
+    protected $table = 'seo_meta';
+
     protected $fillable = [
         'meta_title',
         'meta_description',
@@ -18,9 +20,10 @@ class SeoMeta extends Model
         'no_follow',
         'schema_markup',
     ];
+
     protected $casts = [
-        'no_index'      => 'boolean',
-        'no_follow'     => 'boolean',
+        'no_index' => 'boolean',
+        'no_follow' => 'boolean',
         'schema_markup' => 'array',
     ];
 

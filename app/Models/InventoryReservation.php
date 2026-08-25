@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\InventoryReservationStatus;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class InventoryReservation extends Model
@@ -15,5 +16,10 @@ class InventoryReservation extends Model
     public function inventoryOwner(): MorphTo
     {
         return $this->morphTo();
+    }
+
+    public function orderItem(): BelongsTo
+    {
+        return $this->belongsTo(OrderItem::class, 'reference_id');
     }
 }

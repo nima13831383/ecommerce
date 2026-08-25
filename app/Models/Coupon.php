@@ -2,14 +2,18 @@
 
 namespace App\Models;
 
+use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Support\Collection;
 
 class Coupon extends Model
 {
+    use SoftDeletes;
+
     protected $fillable = [
         'code',
         'description',
@@ -32,17 +36,42 @@ class Coupon extends Model
     protected function casts(): array
     {
         return [
-            'amount'              => 'decimal:0',
-            'min_spend'           => 'decimal:0',
-            'max_spend'           => 'decimal:0',
-            'max_discount'        => 'decimal:0',
-            'free_shipping'       => 'boolean',
+            'amount' => 'integer',
+            'min_spend' => 'integer',
+            'max_spend' => 'integer',
+            'max_discount' => 'integer',
+            'free_shipping' => 'boolean',
             'individual_use_only' => 'boolean',
-            'exclude_sale_items'  => 'boolean',
-            'is_active'           => 'boolean',
-            'starts_at'           => 'datetime',
-            'expires_at'          => 'datetime',
+            'exclude_sale_items' => 'boolean',
+            'is_active' => 'boolean',
+            'starts_at' => 'datetime',
+            'expires_at' => 'datetime',
+            'usage_limit' => 'integer',
+            'usage_limit_per_user' => 'integer',
+            'usage_count' => 'integer',
         ];
+    }
+
+    protected static function booted(): void
+    {
+        static::saving(function (self $coupon): void {
+            $coupon->code = self::normalizeCode((string) $coupon->code);
+        });
+    }
+
+    public static function normalizeCode(string $code): string
+    {
+        return strtoupper(trim($code));
+    }
+
+    public function isAvailableAt(?CarbonInterface $now = null): bool
+    {
+        $now ??= now();
+
+        return $this->is_active
+            && ($this->starts_at === null || $this->starts_at->lessThanOrEqualTo($now))
+            && ($this->expires_at === null || $this->expires_at->greaterThanOrEqualTo($now))
+            && ! $this->hasReachedLimit();
     }
 
     /* ================= روابط پایه ================= */
@@ -194,7 +223,7 @@ class Coupon extends Model
     /** فیلتر کردن مجموعهٔ محصولات سبد به آن‌هایی که کوپن رویشان اعمال می‌شود */
     public function filterEligibleProducts(Collection $products): Collection
     {
-        return $products->filter(fn(Product $p) => $this->appliesToProduct($p))->values();
+        return $products->filter(fn (Product $p) => $this->appliesToProduct($p))->values();
     }
 
     /* ================= اسکوپ‌ها ================= */
@@ -205,9 +234,9 @@ class Coupon extends Model
 
         return $query
             ->where('is_active', true)
-            ->where(fn(Builder $q) => $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now))
-            ->where(fn(Builder $q) => $q->whereNull('expires_at')->orWhere('expires_at', '>=', $now))
-            ->where(fn(Builder $q) => $q->whereNull('usage_limit')
+            ->where(fn (Builder $q) => $q->whereNull('starts_at')->orWhere('starts_at', '<=', $now))
+            ->where(fn (Builder $q) => $q->whereNull('expires_at')->orWhere('expires_at', '>=', $now))
+            ->where(fn (Builder $q) => $q->whereNull('usage_limit')
                 ->orWhereColumn('usage_count', '<', 'usage_limit'));
     }
 
@@ -218,18 +247,18 @@ class Coupon extends Model
     {
         return $query
             // کاربر نباید در لیست استثنا باشد
-            ->when($userId !== null, fn(Builder $q) => $q->whereDoesntHave(
+            ->when($userId !== null, fn (Builder $q) => $q->whereDoesntHave(
                 'users',
-                fn(Builder $u) => $u->whereKey($userId)->wherePivot('is_excluded', true)
+                fn (Builder $u) => $u->whereKey($userId)->wherePivot('is_excluded', true)
             ))
             // یا لیست شامل خالی است، یا کاربر در آن هست
             ->where(function (Builder $q) use ($userId) {
-                $q->whereDoesntHave('users', fn(Builder $u) => $u->wherePivot('is_excluded', false));
+                $q->whereDoesntHave('users', fn (Builder $u) => $u->wherePivot('is_excluded', false));
 
                 if ($userId !== null) {
                     $q->orWhereHas(
                         'users',
-                        fn(Builder $u) => $u->whereKey($userId)->wherePivot('is_excluded', false)
+                        fn (Builder $u) => $u->whereKey($userId)->wherePivot('is_excluded', false)
                     );
                 }
             });

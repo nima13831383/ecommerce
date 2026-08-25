@@ -34,14 +34,16 @@ class OrderService
      * @param  array<int, array{product_id: int, quantity: int, product_variation_id?: int}>  $lines
      * @param  array<string, mixed>  $details
      */
-    public function create(array $lines, array $details, ?int $actorId = null): Order
+    public function create(array $lines, array $details, ?int $actorId = null, ?OrderCreationContext $context = null): Order
     {
         if ($lines === []) {
             throw new DomainException('An order must contain at least one item.');
         }
 
         $customer = $this->customerDetails($details);
-        $idempotency = $this->idempotency($lines, $details, $customer);
+        $idempotency = $context?->idempotencyKey !== null
+            ? ['key' => $context->idempotencyKey, 'fingerprint' => $context->requestFingerprint]
+            : $this->idempotency($lines, $details, $customer);
 
         if ($idempotency !== null) {
             $existing = Order::query()->where('idempotency_key', $idempotency['key'])->first();
@@ -52,7 +54,8 @@ class OrderService
         }
 
         try {
-            return DB::transaction(function () use ($lines, $details, $customer, $actorId, $idempotency): Order {
+            return DB::transaction(function () use ($lines, $details, $customer, $actorId, $idempotency, $context): Order {
+                $pricing = $context?->pricing ?? new OrderPricing;
                 $order = new Order;
                 $order->forceFill([
                     'order_number' => $this->orderNumber(),
@@ -64,6 +67,9 @@ class OrderService
                     'cart_id' => $this->nullablePositiveInteger($details['cart_id'] ?? null),
                     'billing_address' => $details['billing_address'] ?? null,
                     'shipping_address' => $details['shipping_address'] ?? null,
+                    'coupon_id' => $pricing->couponId,
+                    'coupon_snapshot' => $pricing->couponSnapshot,
+                    'shipping_snapshot' => $pricing->shippingSnapshot,
                     'currency' => $details['currency'] ?? 'IRR',
                     'ip_address' => $details['ip_address'] ?? null,
                     'user_agent' => $details['user_agent'] ?? null,
@@ -94,11 +100,22 @@ class OrderService
 
                 $this->reserveInventoryForItems($reservableItems, $this->reservationExpiry($details));
 
+                if ($pricing->discountTotal > $itemsSubtotal) {
+                    throw new DomainException('The order discount cannot exceed the item subtotal.');
+                }
+
+                $grandTotal = $this->add(
+                    $this->add($this->subtract($itemsSubtotal, $pricing->discountTotal), $taxTotal),
+                    $pricing->shippingTotal,
+                );
+
                 $order->forceFill([
                     'items_subtotal' => $itemsSubtotal,
+                    'discount_total' => $pricing->discountTotal,
                     'tax_total' => $taxTotal,
+                    'shipping_total' => $pricing->shippingTotal,
                     'tax_breakdown' => $taxBreakdown,
-                    'grand_total' => $this->add($itemsSubtotal, $taxTotal),
+                    'grand_total' => $grandTotal,
                 ])->save();
 
                 $order->statusHistories()->create([
@@ -157,6 +174,25 @@ class OrderService
 
             return $order->load('statusHistories');
         });
+    }
+
+    public function findIdempotent(string $key, string $fingerprint): ?Order
+    {
+        $key = trim($key);
+
+        if ($key === '' || mb_strlen($key) > 100) {
+            throw new DomainException('The idempotency key is invalid.');
+        }
+
+        $existing = Order::query()->where('idempotency_key', $key)->first();
+
+        return $existing ? $this->idempotentOrder($existing, $fingerprint) : null;
+    }
+
+    /** @return array<int, OrderStatus> */
+    public function allowedTransitionsFor(Order $order): array
+    {
+        return $this->allowedTransitions($order->status);
     }
 
     public function releaseInventoryForOrder(Order $order): Order
@@ -467,5 +503,14 @@ class OrderService
         }
 
         return $left + $right;
+    }
+
+    private function subtract(int $left, int $right): int
+    {
+        if ($right > $left) {
+            throw new DomainException('The order discount cannot exceed the item subtotal.');
+        }
+
+        return $left - $right;
     }
 }

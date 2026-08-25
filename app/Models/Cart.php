@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 
@@ -26,14 +27,15 @@ class Cart extends Model
         'last_activity_at',
         'reminder_sent_at',
     ];
+
     protected $casts = [
-        'subtotal'        => 'decimal:0',
-        'discount_total'  => 'decimal:0',
-        'tax_total'       => 'decimal:0',
-        'shipping_total'  => 'decimal:0',
-        'grand_total'     => 'decimal:0',
-        'last_activity_at'  => 'datetime',
-        'reminder_sent_at'  => 'datetime',
+        'subtotal' => 'integer',
+        'discount_total' => 'integer',
+        'tax_total' => 'integer',
+        'shipping_total' => 'integer',
+        'grand_total' => 'integer',
+        'last_activity_at' => 'datetime',
+        'reminder_sent_at' => 'datetime',
     ];
 
     public function user(): BelongsTo
@@ -47,12 +49,13 @@ class Cart extends Model
     }
 
     // جمع کل سبد بر اساس Snapshot قیمت
-    public function getTotalAttribute(): int
+    public function coupon(): BelongsTo
     {
-        return (int) $this->items->sum(fn($i) => $i->unit_price * $i->quantity);
+        return $this->belongsTo(Coupon::class);
     }
+
     // app/Models/Cart.php
-    public function coupons()
+    public function coupons(): BelongsToMany
     {
         return $this->belongsToMany(Coupon::class, 'cart_coupon')
             ->withPivot(['discount_amount', 'sort_order'])

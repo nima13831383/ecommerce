@@ -6,14 +6,14 @@ trait HandlesSettingValue
 {
     protected function mutateFormDataBeforeFill(array $data): array
     {
-        $raw  = $data['value'] ?? null;
+        $raw = $data['value'] ?? null;
         $type = $data['type'] ?? 'string';
 
-        $data['value_string']  = $type === 'string' ? (string) $raw : null;
-        $data['value_text']    = $type === 'text' ? (string) $raw : null;
-        $data['value_number']  = in_array($type, ['integer', 'float'], true) ? $raw : null;
+        $data['value_string'] = $type === 'string' ? (string) $raw : null;
+        $data['value_text'] = $type === 'text' ? (string) $raw : null;
+        $data['value_number'] = in_array($type, ['integer', 'float'], true) ? $raw : null;
         $data['value_boolean'] = filter_var($raw, FILTER_VALIDATE_BOOLEAN);
-        $data['value_json']    = is_array($d = json_decode((string) $raw, true)) ? $d : [];
+        $data['value_json'] = is_array($d = json_decode((string) $raw, true)) ? $d : [];
 
         return $data;
     }
@@ -21,13 +21,13 @@ trait HandlesSettingValue
     protected function normalizeValue(array $data): array
     {
         $data['value'] = match ($data['type'] ?? 'string') {
-            'string'  => $data['value_string'] ?? null,
-            'text'    => $data['value_text'] ?? null,
-            'integer' => (string) (int) ($data['value_number'] ?? 0),
-            'float'   => (string) (float) ($data['value_number'] ?? 0),
+            'string' => $data['value_string'] ?? null,
+            'text' => $data['value_text'] ?? null,
+            'integer' => blank($data['value_number'] ?? null) ? null : (string) (int) $data['value_number'],
+            'float' => blank($data['value_number'] ?? null) ? null : (string) (float) $data['value_number'],
             'boolean' => ! empty($data['value_boolean']) ? '1' : '0',
-            'json'    => json_encode($data['value_json'] ?? [], JSON_UNESCAPED_UNICODE),
-            default   => null,
+            'json' => json_encode($data['value_json'] ?? [], JSON_UNESCAPED_UNICODE),
+            default => null,
         };
 
         unset(

@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\AddressType;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\SoftDeletes;
@@ -11,16 +12,18 @@ class Address extends Model
     use SoftDeletes;
 
     protected $fillable = [
-        'user_id',
-        'label',
-        'receiver_name',
-        'phone',
-        'province',
-        'city',
+        'type',
+        'first_name',
+        'last_name',
+        'mobile',
+        'province_id',
+        'city_id',
         'postal_code',
         'address_line',
-        'lat',
-        'lng',
+        'plaque',
+        'unit',
+        'latitude',
+        'longitude',
         'is_default',
         'company',
     ];
@@ -28,9 +31,10 @@ class Address extends Model
     protected function casts(): array
     {
         return [
+            'type' => AddressType::class,
             'is_default' => 'boolean',
-            'lat' => 'decimal:7',
-            'lng' => 'decimal:7',
+            'latitude' => 'decimal:7',
+            'longitude' => 'decimal:7',
         ];
     }
 

@@ -22,7 +22,10 @@ return new class extends Migration
             $table->json('metadata')->nullable();
             $table->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $table->timestamps();
-            $table->index(['inventory_owner_type', 'inventory_owner_id', 'created_at']);
+            $table->index(
+                ['inventory_owner_type', 'inventory_owner_id', 'created_at'],
+                'inv_tx_owner_created_idx',
+            );
             $table->unique(['inventory_owner_type', 'inventory_owner_id', 'operation', 'reference_type', 'reference_id'], 'inventory_transaction_reference_unique');
         });
 
@@ -39,7 +42,10 @@ return new class extends Migration
             $table->timestamp('released_at')->nullable();
             $table->json('metadata')->nullable();
             $table->timestamps();
-            $table->index(['inventory_owner_type', 'inventory_owner_id', 'status', 'expires_at']);
+            $table->index(
+                ['inventory_owner_type', 'inventory_owner_id', 'status', 'expires_at'],
+                'inv_res_owner_status_exp_idx',
+            );
             $table->unique(['inventory_owner_type', 'inventory_owner_id', 'reference_type', 'reference_id'], 'inventory_reservation_reference_unique');
         });
     }

@@ -54,6 +54,10 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('site-settings')
                     // ->icon('heroicon-o-megaphone')
                     ->collapsible(),
+                NavigationGroup::make('مدیریت موجودی')
+                    ->collapsible(),
+                NavigationGroup::make('مدیریت کاربران')
+                    ->collapsible(),
             ])
             ->navigationItems([
                 NavigationItem::make('Add Product')

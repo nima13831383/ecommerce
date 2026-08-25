@@ -50,6 +50,34 @@ class InventoryService
         });
     }
 
+    public function adjustToOnHand(Product|ProductVariation $owner, int $quantity, string $reason, ?array $metadata = null, ?int $createdBy = null): ?InventoryTransaction
+    {
+        if ($quantity < 0) {
+            throw new InvalidInventoryAdjustmentException('موجودی نمی‌تواند منفی باشد.');
+        }
+
+        if (blank(trim($reason))) {
+            throw new InvalidInventoryAdjustmentException('دلیل تغییر موجودی الزامی است.');
+        }
+
+        return DB::transaction(function () use ($owner, $quantity, $reason, $metadata, $createdBy): ?InventoryTransaction {
+            $owner = $this->lockOwner($owner);
+            $delta = $quantity - (int) $owner->stock_quantity;
+
+            return $delta === 0 ? null : $this->adjustLocked(
+                $owner,
+                $delta,
+                InventoryOperation::ManualAdjustment,
+                'filament_manual_adjustment',
+                null,
+                trim($reason),
+                false,
+                $metadata,
+                $createdBy,
+            );
+        });
+    }
+
     public function reserve(Product|ProductVariation $owner, int $quantity, CarbonInterface $expiresAt, string $referenceType, string $referenceId): InventoryReservation
     {
         $this->assertPositive($quantity);
@@ -128,7 +156,7 @@ class InventoryService
         return max(0, (int) $owner->stock_quantity - $this->activeReserved($owner));
     }
 
-    private function adjustLocked(Product|ProductVariation $owner, int $delta, InventoryOperation $operation, ?string $referenceType, ?string $referenceId, ?string $reason, bool $reservationCommit = false): InventoryTransaction
+    private function adjustLocked(Product|ProductVariation $owner, int $delta, InventoryOperation $operation, ?string $referenceType, ?string $referenceId, ?string $reason, bool $reservationCommit = false, ?array $metadata = null, ?int $createdBy = null): InventoryTransaction
     {
         $before = (int) $owner->stock_quantity;
         $after = $before + $delta;
@@ -137,7 +165,7 @@ class InventoryService
         }
         $owner->forceFill(['stock_quantity' => $after, 'stock_status' => $after > 0 ? 'in_stock' : 'out_of_stock'])->save();
 
-        return InventoryTransaction::create([...$this->ownerAttributes($owner), 'operation' => $operation, 'quantity_delta' => $delta, 'quantity_before' => $before, 'quantity_after' => $after, 'reference_type' => $referenceType, 'reference_id' => $referenceId, 'reason' => $reason]);
+        return InventoryTransaction::create([...$this->ownerAttributes($owner), 'operation' => $operation, 'quantity_delta' => $delta, 'quantity_before' => $before, 'quantity_after' => $after, 'reference_type' => $referenceType, 'reference_id' => $referenceId, 'reason' => $reason, 'metadata' => $metadata, 'created_by' => $createdBy]);
     }
 
     private function lockOwner(Product|ProductVariation $owner): Product|ProductVariation

@@ -2,18 +2,28 @@
 
 namespace App\Filament\Resources\Coupons;
 
-use App\Filament\Resources\Coupons\Pages;
-use App\Filament\Resources\Coupons\RelationManagers;
 use App\Models\Coupon;
 use BackedEnum;
-use Filament\Actions\{BulkActionGroup, DeleteAction, DeleteBulkAction, EditAction};
-use Filament\Forms\Components\{TextInput, Textarea, Select, Toggle, DateTimePicker};
+use Filament\Actions\DeleteAction;
+use Filament\Actions\EditAction;
+use Filament\Actions\RestoreAction;
+use Filament\Forms\Components\DateTimePicker;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Resources\Resource;
-use Filament\Schemas\Components\{Section, Grid, Utilities\Set};
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\Utilities\Get;
+use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
-use Filament\Tables\Columns\{IconColumn, TextColumn};
-use Filament\Tables\Filters\{Filter, SelectFilter, TernaryFilter};
+use Filament\Tables\Columns\IconColumn;
+use Filament\Tables\Columns\TextColumn;
+use Filament\Tables\Filters\Filter;
+use Filament\Tables\Filters\SelectFilter;
+use Filament\Tables\Filters\TernaryFilter;
+use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
 
 class CouponResource extends Resource
@@ -21,10 +31,15 @@ class CouponResource extends Resource
     protected static ?string $model = Coupon::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedTicket;
+
     protected static string|\UnitEnum|null $navigationGroup = 'Marketing';
+
     protected static ?string $navigationLabel = 'کدهای تخفیف';
+
     protected static ?string $modelLabel = 'کد تخفیف';
+
     protected static ?string $pluralModelLabel = 'کدهای تخفیف';
+
     protected static ?string $recordTitleAttribute = 'code';
 
     public static function form(Schema $schema): Schema
@@ -35,10 +50,10 @@ class CouponResource extends Resource
                     ->label('کد')
                     ->required()
                     ->maxLength(255)
+                    ->dehydrateStateUsing(fn (?string $state): string => Coupon::normalizeCode((string) $state))
                     ->unique(ignoreRecord: true)
                     ->afterStateUpdated(
-                        fn(Set $set, ?string $state) =>
-                        $set('code', strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', (string) $state)))
+                        fn (Set $set, ?string $state) => $set('code', strtoupper(preg_replace('/[^A-Za-z0-9_-]/', '', (string) $state)))
                     )
                     ->live(onBlur: true),
 
@@ -54,8 +69,8 @@ class CouponResource extends Resource
                 Select::make('type')
                     ->label('نوع')
                     ->options([
-                        'percent'       => 'درصدی',
-                        'fixed_cart'    => 'مبلغ ثابت روی سبد',
+                        'percent' => 'درصدی',
+                        'fixed_cart' => 'مبلغ ثابت روی سبد',
                         'fixed_product' => 'مبلغ ثابت روی محصول',
                     ])
                     ->default('fixed_cart')
@@ -63,25 +78,26 @@ class CouponResource extends Resource
                     ->live(),
 
                 TextInput::make('amount')
-                    ->label(fn(callable $get) => $get('type') === 'percent' ? 'درصد تخفیف' : 'مبلغ تخفیف')
-                    ->numeric()->required()->default(0)->minValue(0)
-                    ->maxValue(fn(callable $get) => $get('type') === 'percent' ? 100 : null)
-                    ->suffix(fn(callable $get) => $get('type') === 'percent' ? '%' : 'ریال'),
+                    ->label(fn (callable $get) => $get('type') === 'percent' ? 'درصد تخفیف' : 'مبلغ تخفیف')
+                    ->numeric()->integer()->step(1)->required()->default(1)->minValue(1)
+                    ->maxValue(fn (callable $get) => $get('type') === 'percent' ? 100 : null)
+                    ->suffix(fn (callable $get) => $get('type') === 'percent' ? '%' : 'ریال'),
 
                 TextInput::make('max_discount')
-                    ->label('سقف تخفیف')->numeric()->minValue(0)->suffix('ریال')
-                    ->visible(fn(callable $get) => $get('type') === 'percent')
+                    ->label('سقف تخفیف')->numeric()->integer()->step(1)->minValue(1)->suffix('ریال')
+                    ->visible(fn (callable $get) => $get('type') === 'percent')
+                    ->dehydrated(fn (Get $get): bool => $get('type') === 'percent')
                     ->helperText('حداکثر مبلغ تخفیف قابل اعمال'),
             ]),
 
             Section::make('شرایط سبد')->columns(2)->schema([
-                TextInput::make('min_spend')->label('حداقل مبلغ سبد')->numeric()->minValue(0)->suffix('ریال'),
-                TextInput::make('max_spend')->label('حداکثر مبلغ سبد')->numeric()->minValue(0)->suffix('ریال'),
+                TextInput::make('min_spend')->label('حداقل مبلغ سبد')->numeric()->integer()->step(1)->minValue(0)->suffix('ریال'),
+                TextInput::make('max_spend')->label('حداکثر مبلغ سبد')->numeric()->integer()->step(1)->minValue(0)->suffix('ریال'),
             ]),
 
             Section::make('محدودیت مصرف')->columns(3)->schema([
-                TextInput::make('usage_limit')->label('سقف کل مصرف')->numeric()->minValue(0),
-                TextInput::make('usage_limit_per_user')->label('سقف مصرف هر کاربر')->numeric()->minValue(0),
+                TextInput::make('usage_limit')->label('سقف کل مصرف')->numeric()->integer()->step(1)->minValue(1),
+                TextInput::make('usage_limit_per_user')->label('سقف مصرف هر کاربر')->numeric()->integer()->step(1)->minValue(1),
                 TextInput::make('usage_count')
                     ->label('تعداد مصرف‌شده')->numeric()->default(0)
                     ->disabled()->dehydrated(false),
@@ -112,29 +128,33 @@ class CouponResource extends Resource
                     ->searchable()->copyable()->weight('bold'),
 
                 TextColumn::make('type')->label('نوع')->badge()
-                    ->formatStateUsing(fn(string $state) => match ($state) {
-                        'percent'    => 'درصدی',
+                    ->formatStateUsing(fn (string $state) => match ($state) {
+                        'percent' => 'درصدی',
                         'fixed_cart' => 'مبلغ سبد',
-                        default      => 'مبلغ محصول',
+                        default => 'مبلغ محصول',
                     })
-                    ->color(fn(string $state) => match ($state) {
-                        'percent'    => 'info',
+                    ->color(fn (string $state) => match ($state) {
+                        'percent' => 'info',
                         'fixed_cart' => 'success',
-                        default      => 'warning',
+                        default => 'warning',
                     }),
 
                 TextColumn::make('amount')->label('مقدار')
-                    ->formatStateUsing(fn($state, Coupon $record) => $record->type === 'percent'
-                        ? "{$state}%"
-                        : number_format((float) $state) . ' ریال'),
+                    ->formatStateUsing(fn ($state, Coupon $record) => $record->type === 'percent'
+                        ? number_format((int) $state).'٪'
+                        : number_format((int) $state).' ریال'),
+
+                TextColumn::make('operational_status')->label('وضعیت عملیاتی')->badge()
+                    ->state(fn (Coupon $record): string => self::operationalStatus($record))
+                    ->color(fn (Coupon $record): string => self::operationalStatusColor($record)),
 
                 TextColumn::make('users_count')->counts('users')->label('کاربران خاص')
                     ->badge()
-                    ->formatStateUsing(fn(?int $state) => ((int) $state) === 0 ? 'عمومی' : $state . ' کاربر')
-                    ->color(fn(?int $state) => ((int) $state) === 0 ? 'gray' : 'primary'),
+                    ->formatStateUsing(fn (?int $state) => ((int) $state) === 0 ? 'عمومی' : $state.' کاربر')
+                    ->color(fn (?int $state) => ((int) $state) === 0 ? 'gray' : 'primary'),
 
                 TextColumn::make('usage_count')->label('مصرف')
-                    ->formatStateUsing(fn($state, Coupon $record) => $record->usage_limit
+                    ->formatStateUsing(fn ($state, Coupon $record) => $record->usage_limit
                         ? "{$state}/{$record->usage_limit}"
                         : (string) $state),
 
@@ -146,21 +166,27 @@ class CouponResource extends Resource
                     ->dateTime('Y/m/d H:i')->sortable()->toggleable(),
             ])
             ->filters([
-                TernaryFilter::make('is_active')->label('وضعیت'),
+                TernaryFilter::make('is_active')->label('وضعیت فعال بودن'),
                 SelectFilter::make('type')->label('نوع')->options([
-                    'percent'       => 'درصدی',
-                    'fixed_cart'    => 'مبلغ سبد',
+                    'percent' => 'درصدی',
+                    'fixed_cart' => 'مبلغ سبد',
                     'fixed_product' => 'مبلغ محصول',
                 ]),
                 Filter::make('expired')->label('منقضی‌شده')
-                    ->query(fn($query) => $query->whereNotNull('expires_at')->where('expires_at', '<', now())),
+                    ->query(fn ($query) => $query->whereNotNull('expires_at')->where('expires_at', '<', now())),
+                Filter::make('scheduled')->label('زمان‌بندی‌شده')
+                    ->query(fn ($query) => $query->whereNotNull('starts_at')->where('starts_at', '>', now())),
+                Filter::make('exhausted')->label('اتمام ظرفیت')
+                    ->query(fn ($query) => $query->whereNotNull('usage_limit')->whereColumn('usage_count', '>=', 'usage_limit')),
                 Filter::make('user_restricted')->label('اختصاصی کاربران')
-                    ->query(fn($query) => $query->has('users')),
+                    ->query(fn ($query) => $query->has('users')),
+                TrashedFilter::make()->label('وضعیت حذف'),
             ])
             ->defaultSort('created_at', 'desc')
-            ->recordActions([EditAction::make(), DeleteAction::make()])
-            ->toolbarActions([
-                BulkActionGroup::make([DeleteBulkAction::make()]),
+            ->recordActions([
+                EditAction::make()->label('ویرایش')->authorize('update'),
+                DeleteAction::make()->label('حذف نرم')->authorize('delete'),
+                RestoreAction::make()->label('بازیابی')->authorize('restore'),
             ]);
     }
 
@@ -173,13 +199,44 @@ class CouponResource extends Resource
         ];
     }
 
+    private static function operationalStatus(Coupon $coupon): string
+    {
+        if (! $coupon->is_active) {
+            return 'غیرفعال';
+        }
+
+        if ($coupon->starts_at?->isFuture()) {
+            return 'زمان‌بندی‌شده';
+        }
+
+        if ($coupon->expires_at?->isPast()) {
+            return 'منقضی‌شده';
+        }
+
+        if ($coupon->hasReachedLimit()) {
+            return 'اتمام ظرفیت';
+        }
+
+        return 'فعال';
+    }
+
+    private static function operationalStatusColor(Coupon $coupon): string
+    {
+        return match (self::operationalStatus($coupon)) {
+            'فعال' => 'success',
+            'زمان‌بندی‌شده' => 'info',
+            'اتمام ظرفیت' => 'warning',
+            'منقضی‌شده' => 'gray',
+            default => 'danger',
+        };
+    }
 
     public static function getPages(): array
     {
         return [
-            'index'  => Pages\ListCoupons::route('/'),
+            'index' => Pages\ListCoupons::route('/'),
             'create' => Pages\CreateCoupon::route('/create'),
-            'edit'   => Pages\EditCoupon::route('/{record}/edit'),
+            'edit' => Pages\EditCoupon::route('/{record}/edit'),
         ];
     }
 }

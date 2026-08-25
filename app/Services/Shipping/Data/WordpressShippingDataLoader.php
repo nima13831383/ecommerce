@@ -33,6 +33,11 @@ class WordpressShippingDataLoader
         return array_filter($provinces);
     }
 
+    public function provinceName(int $provinceId): ?string
+    {
+        return $this->provinces()[$provinceId] ?? null;
+    }
+
     /**
      * @return array<int, string>
      */
@@ -55,6 +60,11 @@ class WordpressShippingDataLoader
         asort($cities);
 
         return $cities;
+    }
+
+    public function cityName(int $cityId, int $provinceId): ?string
+    {
+        return $this->cities($provinceId)[$cityId] ?? null;
     }
 
     /**
