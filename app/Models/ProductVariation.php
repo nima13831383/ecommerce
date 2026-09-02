@@ -10,9 +10,9 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ProductVariation extends Model
 {
-    protected $fillable = ['product_id', 'combination_signature', 'sku', 'price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'manage_stock', 'weight', 'image', 'is_active', 'is_dismissed'];
+    protected $fillable = ['product_id', 'combination_signature', 'sku', 'price', 'sale_price', 'sale_starts_at', 'sale_ends_at', 'manage_stock', 'weight', 'volume', 'image', 'is_active', 'is_dismissed'];
 
-    protected $casts = ['price' => 'decimal:0', 'sale_price' => 'decimal:0', 'sale_starts_at' => 'datetime', 'sale_ends_at' => 'datetime', 'manage_stock' => 'boolean', 'is_active' => 'boolean', 'weight' => 'decimal:2', 'is_dismissed' => 'boolean'];
+    protected $casts = ['price' => 'decimal:0', 'sale_price' => 'decimal:0', 'sale_starts_at' => 'datetime', 'sale_ends_at' => 'datetime', 'manage_stock' => 'boolean', 'is_active' => 'boolean', 'weight' => 'decimal:2', 'volume' => 'decimal:6', 'is_dismissed' => 'boolean'];
 
     public function product(): BelongsTo
     {

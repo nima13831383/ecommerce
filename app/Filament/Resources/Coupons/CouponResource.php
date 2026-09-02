@@ -108,8 +108,7 @@ class CouponResource extends Resource
                     ->label('فقط به‌تنهایی قابل استفاده')
                     ->helperText('اگر فعال باشد، با هیچ کوپن دیگری ترکیب نمی‌شود.')
                     ->inline(false),
-                Toggle::make('exclude_sale_items')->label('عدم اعمال روی کالای حراجی')->inline(false),
-                Toggle::make('free_shipping')->label('ارسال رایگان')->inline(false),
+                Toggle::make('exclude_discounted_products')->label('عدم اعمال روی محصولات دارای تخفیف')->inline(false),
             ]),
 
             Section::make('بازه اعتبار')->columns(2)->schema([
@@ -158,7 +157,6 @@ class CouponResource extends Resource
                         ? "{$state}/{$record->usage_limit}"
                         : (string) $state),
 
-                IconColumn::make('free_shipping')->label('ارسال رایگان')->boolean()->toggleable(),
                 IconColumn::make('individual_use_only')->label('انفرادی')->boolean()->toggleable(),
                 IconColumn::make('is_active')->label('فعال')->boolean(),
 
@@ -194,8 +192,9 @@ class CouponResource extends Resource
     {
         return [
             RelationManagers\ProductsRelationManager::class,
-            RelationManagers\CategoriesRelationManager::class,
             RelationManagers\UsersRelationManager::class,
+            RelationManagers\RolesRelationManager::class,
+            RelationManagers\UsagesRelationManager::class,
         ];
     }
 

@@ -10,6 +10,7 @@ use App\Models\Coupon;
 use App\Models\CouponUsage;
 use App\Models\Order;
 use App\Models\User;
+use App\Services\Catalog\ProductPriceResolver;
 use App\Services\Coupons\CouponEvaluation;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
@@ -19,6 +20,8 @@ use Throwable;
 
 class CouponService
 {
+    public function __construct(private readonly ProductPriceResolver $prices) {}
+
     public function evaluate(string $code, Cart $cart, ?int $userId = null): CouponEvaluation
     {
         $normalizedCode = Coupon::normalizeCode($code);
@@ -65,7 +68,7 @@ class CouponService
             throw new CouponValidationException('کاربر استفاده‌کننده یافت نشد.');
         }
 
-        if (! $coupon->appliesToUser($user)) {
+        if (! $this->customerEligible($coupon, $user)) {
             throw new CouponValidationException('این کد تخفیف برای این کاربر قابل استفاده نیست.');
         }
 
@@ -174,6 +177,54 @@ class CouponService
             'starts_at' => $coupon->starts_at,
             'expires_at' => $coupon->expires_at,
         ]);
+
+        foreach ([
+            [$coupon->includedProducts(), $coupon->excludedProducts(), 'محصول'],
+            [$coupon->includedUsers(), $coupon->excludedUsers(), 'کاربر'],
+            [$coupon->includedRoles(), $coupon->excludedRoles(), 'نقش کاربری'],
+        ] as [$included, $excluded, $label]) {
+            if ($included->exists() && $excluded->exists()) {
+                throw new CouponConfigurationException("فهرست شامل و مستثنی {$label} نمی‌توانند هم‌زمان تنظیم شوند.");
+            }
+        }
+    }
+
+    /** @param  array<int, int|string>  $recordIds */
+    public function assertTargetingMutation(Coupon $coupon, string $dimension, bool $isExcluded, array $recordIds): void
+    {
+        $coupon = Coupon::query()->lockForUpdate()->findOrFail($coupon->getKey());
+        $recordIds = collect($recordIds)
+            ->map(fn (int|string $id): int => (int) $id)
+            ->filter(fn (int $id): bool => $id > 0)
+            ->unique()
+            ->values();
+
+        if ($recordIds->isEmpty()) {
+            return;
+        }
+
+        [$included, $excluded, $label] = match ($dimension) {
+            'products' => [$coupon->includedProducts(), $coupon->excludedProducts(), 'محصول'],
+            'users' => [$coupon->includedUsers(), $coupon->excludedUsers(), 'کاربر'],
+            'roles' => [$coupon->includedRoles(), $coupon->excludedRoles(), 'نقش کاربری'],
+            default => throw new CouponConfigurationException('نوع محدودیت کد تخفیف معتبر نیست.'),
+        };
+
+        $includedIds = $included->lockForUpdate()->allRelatedIds()->map(fn ($id): int => (int) $id);
+        $excludedIds = $excluded->lockForUpdate()->allRelatedIds()->map(fn ($id): int => (int) $id);
+
+        $includedIds = $includedIds->diff($recordIds);
+        $excludedIds = $excludedIds->diff($recordIds);
+
+        if ($isExcluded) {
+            $excludedIds = $excludedIds->merge($recordIds)->unique();
+        } else {
+            $includedIds = $includedIds->merge($recordIds)->unique();
+        }
+
+        if ($includedIds->isNotEmpty() && $excludedIds->isNotEmpty()) {
+            throw new CouponConfigurationException("فهرست شامل و مستثنی {$label} نمی‌توانند هم‌زمان تنظیم شوند.");
+        }
     }
 
     public function assertValidConfigurationData(array $data): void
@@ -242,25 +293,25 @@ class CouponService
 
     protected function eligibleItems(Coupon $coupon, Cart $cart): Collection
     {
-        $cart->items->loadMissing(['product.categories', 'variation']);
+        $cart->items->loadMissing(['product', 'variation']);
         $excludedProductIds = $coupon->excludedProducts()->pluck('products.id');
-        $excludedCategoryIds = $coupon->excludedCategories()->pluck('categories.id');
         $includedProductIds = $coupon->includedProducts()->pluck('products.id');
-        $includedCategoryIds = $coupon->includedCategories()->pluck('categories.id');
-        $hasIncludeRules = $includedProductIds->isNotEmpty() || $includedCategoryIds->isNotEmpty();
+        $hasIncludeRules = $includedProductIds->isNotEmpty();
 
-        return $cart->items->filter(function (CartItem $item) use ($coupon, $excludedProductIds, $excludedCategoryIds, $includedProductIds, $includedCategoryIds, $hasIncludeRules): bool {
+        return $cart->items->filter(function (CartItem $item) use ($coupon, $excludedProductIds, $includedProductIds, $hasIncludeRules): bool {
             $product = $item->product;
             if (! $product) {
                 return false;
             }
 
-            $categoryIds = $product->categories->pluck('id');
-            if ($coupon->exclude_sale_items && $product->on_sale) {
+            $pricing = $item->variation instanceof ProductVariation
+                ? $this->prices->pricesForVariation($item->variation)
+                : $this->prices->pricesForProduct($product);
+            if ($coupon->exclude_discounted_products && ($pricing['is_discounted'] ?? false)) {
                 return false;
             }
 
-            if ($excludedProductIds->contains($product->id) || $categoryIds->intersect($excludedCategoryIds)->isNotEmpty()) {
+            if ($excludedProductIds->contains($product->id)) {
                 return false;
             }
 
@@ -268,8 +319,36 @@ class CouponService
                 return true;
             }
 
-            return $includedProductIds->contains($product->id) || $categoryIds->intersect($includedCategoryIds)->isNotEmpty();
+            return $includedProductIds->contains($product->id);
         })->values();
+    }
+
+    private function appliesToRoles(Coupon $coupon, ?User $user): bool
+    {
+        $included = $coupon->includedRoles()->pluck('roles.id');
+        $excluded = $coupon->excludedRoles()->pluck('roles.id');
+        if ($included->isEmpty() && $excluded->isEmpty()) {
+            return true;
+        }
+
+        if ($user === null || $excluded->intersect($user->roles()->pluck('roles.id'))->isNotEmpty()) {
+            return false;
+        }
+
+        return $included->isEmpty() || $included->intersect($user->roles()->pluck('roles.id'))->isNotEmpty();
+    }
+
+    private function customerEligible(Coupon $coupon, ?User $user): bool
+    {
+        if ($user !== null && $coupon->excludedUsers()->whereKey($user->getKey())->exists()) {
+            return false;
+        }
+
+        if ($user !== null && $coupon->includedUsers()->whereKey($user->getKey())->exists()) {
+            return true;
+        }
+
+        return $coupon->appliesToUser($user) && $this->appliesToRoles($coupon, $user);
     }
 
     private function calculateDiscountForItems(Coupon $coupon, Collection $items, int $eligibleAmount): int
@@ -347,11 +426,31 @@ class CouponService
             return $value;
         }
 
+        if (is_float($value)) {
+            if (! is_finite($value) || floor($value) !== $value || $value < PHP_INT_MIN || $value > PHP_INT_MAX) {
+                throw new CouponConfigurationException("{$label} باید یک عدد صحیح ریالی باشد.");
+            }
+
+            return (int) $value;
+        }
+
         if (! is_string($value) || ! preg_match('/^\d+$/', trim($value))) {
             throw new CouponConfigurationException("{$label} باید یک عدد صحیح ریالی باشد.");
         }
 
-        return (int) $value;
+        $normalized = ltrim(trim($value), '0');
+        $normalized = $normalized === '' ? '0' : $normalized;
+
+        if (strlen($normalized) > strlen((string) PHP_INT_MAX)) {
+            throw new CouponConfigurationException("{$label} خارج از محدوده پشتیبانی‌شده است.");
+        }
+
+        $integer = (int) $value;
+        if ((string) $integer !== $normalized) {
+            throw new CouponConfigurationException("{$label} خارج از محدوده پشتیبانی‌شده است.");
+        }
+
+        return $integer;
     }
 
     private function nullableInteger(mixed $value, string $label): ?int

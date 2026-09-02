@@ -19,6 +19,7 @@ class ProductPriceResolver
             'regular_price' => $regularPrice,
             'sale_price' => $salePrice,
             'effective_price' => $effectivePrice,
+            'is_discounted' => $this->isVariationOnSale($variation),
         ];
     }
 
@@ -72,6 +73,7 @@ class ProductPriceResolver
             'effective_price' => $minimumPrice,
             'minimum_price' => $minimumPrice,
             'maximum_price' => $maximumPrice,
+            'is_discounted' => false,
         ];
     }
 
@@ -90,6 +92,7 @@ class ProductPriceResolver
             'effective_price' => $effectivePrice,
             'minimum_price' => $effectivePrice,
             'maximum_price' => $effectivePrice,
+            'is_discounted' => $isOnSale,
         ];
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Coupons\RelationManagers;
 
+use App\Filament\Resources\Coupons\RelationManagers\Concerns\GuardsCouponTargeting;
 use Filament\Actions\AttachAction;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DetachAction;
@@ -17,6 +18,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class UsersRelationManager extends RelationManager
 {
+    use GuardsCouponTargeting;
+
     protected static string $relationship = 'users';
 
     protected static ?string $title = 'کاربران';
@@ -37,12 +40,12 @@ class UsersRelationManager extends RelationManager
                 IconColumn::make('is_excluded')
                     ->label('وضعیت')
                     ->boolean()
-                    ->getStateUsing(fn($record): bool => (bool) $record->pivot->is_excluded)
+                    ->getStateUsing(fn ($record): bool => (bool) $record->pivot->is_excluded)
                     ->trueIcon('heroicon-o-no-symbol')
                     ->trueColor('danger')
                     ->falseIcon('heroicon-o-check-badge')
                     ->falseColor('success')
-                    ->tooltip(fn($record): string => $record->pivot->is_excluded ? 'محروم' : 'مجاز'),
+                    ->tooltip(fn ($record): string => $record->pivot->is_excluded ? 'محروم' : 'مجاز'),
             ])
             ->filters([
                 TernaryFilter::make('is_excluded')
@@ -51,9 +54,9 @@ class UsersRelationManager extends RelationManager
                     ->trueLabel('فقط محروم‌ها')
                     ->falseLabel('فقط مجازها')
                     ->queries(
-                        true: fn(Builder $query) => $query->where('coupon_user.is_excluded', true),
-                        false: fn(Builder $query) => $query->where('coupon_user.is_excluded', false),
-                        blank: fn(Builder $query) => $query,
+                        true: fn (Builder $query) => $query->where('coupon_user.is_excluded', true),
+                        false: fn (Builder $query) => $query->where('coupon_user.is_excluded', false),
+                        blank: fn (Builder $query) => $query,
                     ),
             ])
             ->headerActions([
@@ -62,13 +65,14 @@ class UsersRelationManager extends RelationManager
                     ->multiple()
                     ->preloadRecordSelect(false)
                     ->recordSelectSearchColumns(['name', 'email', 'mobile'])
-                    ->schema(fn(AttachAction $action): array => [
+                    ->schema(fn (AttachAction $action): array => [
                         $action->getRecordSelect(),
                         Toggle::make('is_excluded')
                             ->label('محروم شود')
                             ->helperText('خاموش = کوپن مخصوص این کاربران | روشن = این کاربران اجازه استفاده ندارند')
                             ->default(false),
-                    ]),
+                    ])
+                    ->before(fn (AttachAction $action) => $this->guardActionTargetingMutation($action, 'users')),
             ])
             ->recordActions([
                 EditAction::make()
@@ -77,9 +81,10 @@ class UsersRelationManager extends RelationManager
                     ->schema([
                         Toggle::make('is_excluded')->label('محروم شود'),
                     ])
-                    ->fillForm(fn($record): array => [
+                    ->fillForm(fn ($record): array => [
                         'is_excluded' => (bool) $record->pivot->is_excluded,
-                    ]),
+                    ])
+                    ->before(fn (EditAction $action) => $this->guardActionTargetingMutation($action, 'users', (int) $action->getRecord()->getKey())),
 
                 DetachAction::make()->label('حذف'),
             ])

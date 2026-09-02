@@ -6,6 +6,7 @@ use App\Enums\InventoryReservationStatus;
 use App\Enums\OrderPaymentStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Events\CustomerLifecycle\PaymentSucceeded;
 use App\Models\Order;
 use App\Models\Payment;
 use App\Services\Orders\OrderService;
@@ -62,7 +63,7 @@ class PaymentService
 
         $result = $this->gateways->gateway($gatewayAlias)->initiate($payment);
 
-        return DB::transaction(function () use ($payment, $result): Payment {
+        $payment = DB::transaction(function () use ($payment, $result): Payment {
             $payment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
 
             if ($payment->status !== PaymentStatus::Pending) {
@@ -86,6 +87,8 @@ class PaymentService
 
             return $payment;
         });
+
+        return $payment;
     }
 
     public function verify(Payment $payment): Payment
@@ -98,7 +101,8 @@ class PaymentService
 
         $result = $this->gateways->gateway((string) $payment->gateway)->verify($payment);
 
-        return DB::transaction(function () use ($payment, $result): Payment {
+        $success = false;
+        $payment = DB::transaction(function () use ($payment, $result, &$success): Payment {
             $payment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
             $order = Order::query()->lockForUpdate()->findOrFail($payment->order_id);
 
@@ -132,8 +136,16 @@ class PaymentService
             $order->statusHistories()->create(['from_status' => 'unpaid', 'to_status' => 'paid', 'type' => 'payment_status', 'comment' => 'Payment verified.']);
             $this->orders->transitionStatus($order, OrderStatus::Processing, comment: 'Payment verified.');
 
+            $success = true;
+
             return $payment;
         });
+
+        if ($success) {
+            event(new PaymentSucceeded($payment->fresh('order')));
+        }
+
+        return $payment;
     }
 
     private function assertPayable(Order $order): void

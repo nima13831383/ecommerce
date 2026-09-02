@@ -19,7 +19,6 @@ class Coupon extends Model
         'description',
         'type',
         'amount',
-        'free_shipping',                 // ← مطابق ecommerce_5.pdf ص۲۳
         'min_spend',
         'max_spend',
         'max_discount',
@@ -27,7 +26,7 @@ class Coupon extends Model
         'usage_limit_per_user',
         'usage_count',
         'individual_use_only',
-        'exclude_sale_items',
+        'exclude_discounted_products',
         'is_active',
         'starts_at',
         'expires_at',
@@ -40,9 +39,8 @@ class Coupon extends Model
             'min_spend' => 'integer',
             'max_spend' => 'integer',
             'max_discount' => 'integer',
-            'free_shipping' => 'boolean',
             'individual_use_only' => 'boolean',
-            'exclude_sale_items' => 'boolean',
+            'exclude_discounted_products' => 'boolean',
             'is_active' => 'boolean',
             'starts_at' => 'datetime',
             'expires_at' => 'datetime',
@@ -99,6 +97,22 @@ class Coupon extends Model
             ->withPivot('is_excluded');
     }
 
+    public function roles(): BelongsToMany
+    {
+        return $this->belongsToMany(config('permission.models.role'), 'coupon_role')
+            ->withPivot('is_excluded');
+    }
+
+    public function includedRoles(): BelongsToMany
+    {
+        return $this->roles()->wherePivot('is_excluded', false);
+    }
+
+    public function excludedRoles(): BelongsToMany
+    {
+        return $this->roles()->wherePivot('is_excluded', true);
+    }
+
     /* ================= میان‌برهای شامل/استثنا ================= */
 
     public function includedProducts(): BelongsToMany
@@ -109,16 +123,6 @@ class Coupon extends Model
     public function excludedProducts(): BelongsToMany
     {
         return $this->products()->wherePivot('is_excluded', true);
-    }
-
-    public function includedCategories(): BelongsToMany
-    {
-        return $this->categories()->wherePivot('is_excluded', false);
-    }
-
-    public function excludedCategories(): BelongsToMany
-    {
-        return $this->categories()->wherePivot('is_excluded', true);
     }
 
     public function includedUsers(): BelongsToMany
@@ -168,26 +172,6 @@ class Coupon extends Model
 
         // 2) اگر لیست شامل پر است → باید داخلش باشد
         if ($included !== [] && ! in_array($product->id, $included, true)) {
-            return false;
-        }
-
-        // 3) بررسی دسته‌بندی‌ها
-        return $this->appliesToCategories($product->categories->pluck('id')->all());
-    }
-
-    /* ---------- دسته‌بندی‌ها ---------- */
-
-    public function appliesToCategories(array $categoryIds): bool
-    {
-        $included = $this->includedCategories->pluck('id')->all();
-        $excluded = $this->excludedCategories->pluck('id')->all();
-
-        // اگر محصول در هر یک از دسته‌های استثنا باشد → رد
-        if ($excluded !== [] && array_intersect($categoryIds, $excluded) !== []) {
-            return false;
-        }
-
-        if ($included !== [] && array_intersect($categoryIds, $included) === []) {
             return false;
         }
 

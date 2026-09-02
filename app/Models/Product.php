@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Settings\SettingsService;
 use App\Services\Tax\TaxCalculator;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -31,6 +32,8 @@ class Product extends Model
         'is_downloadable',
         'is_virtual',
         'weight',
+        'volume',
+        'parcel_type',
         'length',
         'width',
         'height',
@@ -65,6 +68,8 @@ class Product extends Model
         'is_featured' => 'boolean',
         'published_at' => 'datetime',
         'weight' => 'decimal:2',
+        'volume' => 'decimal:6',
+        'parcel_type' => 'string',
         'rating_avg' => 'decimal:2',
         // 'variation_attributes' => 'array',
     ];
@@ -216,13 +221,13 @@ class Product extends Model
 
     public function getEffectiveTaxClass(): ?TaxClass
     {
-        if ($this->taxClass) {
+        if ($this->taxClass?->is_active) {
             return $this->taxClass;
         }
 
-        $id = Setting::getValue('default_tax_class_id', 'tax');
+        $id = app(SettingsService::class)->get('default_tax_class_id');
 
-        return $id ? TaxClass::find((int) $id) : null;
+        return $id ? TaxClass::query()->whereKey((int) $id)->where('is_active', true)->first() : null;
     }
 
     public function taxAmountForPrice(int $taxableAmountRials, int $quantity = 1): int

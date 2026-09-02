@@ -4,14 +4,22 @@ namespace App\Services\Settings;
 
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Shipping\Data\WordpressShippingDataLoader;
+use App\Services\Shipping\ShippingOptionCatalog;
 use App\Settings\SettingDefinition;
 use App\Settings\SettingRegistry;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 
 class SettingsService
 {
+    public function __construct(
+        private readonly WordpressShippingDataLoader $geography,
+        private readonly ShippingOptionCatalog $shippingOptions,
+    ) {}
+
     public function get(string $key, mixed $default = null, ?string $group = null): mixed
     {
         $definition = SettingRegistry::get($key);
@@ -66,11 +74,40 @@ class SettingsService
             ['value' => $definition->rules],
         )->validate()['value'];
 
-        return match ($definition->type) {
+        $normalized = match ($definition->type) {
             'integer', 'money' => $validated === null ? null : (int) $validated,
             'boolean' => (bool) $validated,
             'json' => $validated,
             default => is_string($validated) ? trim($validated) : $validated,
         };
+
+        $this->assertShippingSetting($definition->key, $normalized);
+
+        return $normalized;
+    }
+
+    private function assertShippingSetting(string $key, mixed $value): void
+    {
+        if ($key === 'shipping.origin_province_id' && $value !== null && $this->geography->provinceName((int) $value) === null) {
+            throw ValidationException::withMessages(['value' => 'استان مبدأ ارسال نامعتبر است.']);
+        }
+
+        if ($key === 'shipping.origin_city_id' && $value !== null) {
+            $province = (int) $this->get('shipping.origin_province_id', 0);
+            if (! $this->geography->cityBelongsToProvince((int) $value, $province)) {
+                throw ValidationException::withMessages(['value' => 'شهر مبدأ با استان مبدأ همخوانی ندارد.']);
+            }
+        }
+
+        if ($key !== 'shipping.packages') {
+            return;
+        }
+
+        $codes = array_keys($this->shippingOptions->packageSizes());
+        foreach ($value as $package) {
+            if (! is_array($package) || blank($package['id'] ?? null) || blank($package['name'] ?? null) || ! is_numeric($package['capacity_volume'] ?? null) || (float) $package['capacity_volume'] <= 0 || ! is_numeric($package['max_weight'] ?? null) || (float) $package['max_weight'] <= 0 || ! in_array((int) ($package['code'] ?? 0), $codes, true)) {
+                throw ValidationException::withMessages(['value' => 'تنظیم بسته‌بندی نامعتبر است.']);
+            }
+        }
     }
 }

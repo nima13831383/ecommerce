@@ -13,7 +13,9 @@ trait HandlesSettingValue
         $data['value_text'] = $type === 'text' ? (string) $raw : null;
         $data['value_number'] = in_array($type, ['integer', 'float'], true) ? $raw : null;
         $data['value_boolean'] = filter_var($raw, FILTER_VALIDATE_BOOLEAN);
-        $data['value_json'] = is_array($d = json_decode((string) $raw, true)) ? $d : [];
+        $data['value_json'] = is_array($d = json_decode((string) $raw, true))
+            ? json_encode($d, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT)
+            : '';
 
         return $data;
     }
@@ -26,7 +28,7 @@ trait HandlesSettingValue
             'integer' => blank($data['value_number'] ?? null) ? null : (string) (int) $data['value_number'],
             'float' => blank($data['value_number'] ?? null) ? null : (string) (float) $data['value_number'],
             'boolean' => ! empty($data['value_boolean']) ? '1' : '0',
-            'json' => json_encode($data['value_json'] ?? [], JSON_UNESCAPED_UNICODE),
+            'json' => $this->decodeJson($data['value_json'] ?? ''),
             default => null,
         };
 
@@ -39,6 +41,17 @@ trait HandlesSettingValue
         );
 
         return $data;
+    }
+
+    private function decodeJson(mixed $value): array
+    {
+        if (is_array($value)) {
+            return $value;
+        }
+
+        $decoded = json_decode((string) $value, true);
+
+        return is_array($decoded) ? $decoded : [];
     }
 
     protected function mutateFormDataBeforeCreate(array $data): array

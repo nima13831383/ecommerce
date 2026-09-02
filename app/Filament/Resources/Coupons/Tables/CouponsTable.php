@@ -24,8 +24,6 @@ class CouponsTable
                 TextColumn::make('amount')
                     ->numeric()
                     ->sortable(),
-                IconColumn::make('free_shipping')
-                    ->boolean(),
                 TextColumn::make('min_spend')
                     ->numeric()
                     ->sortable(),
@@ -46,7 +44,7 @@ class CouponsTable
                     ->sortable(),
                 IconColumn::make('individual_use_only')
                     ->boolean(),
-                IconColumn::make('exclude_sale_items')
+                IconColumn::make('exclude_discounted_products')
                     ->boolean(),
                 IconColumn::make('is_active')
                     ->boolean(),

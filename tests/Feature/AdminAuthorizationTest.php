@@ -126,6 +126,35 @@ test('a soft-deleted user cannot retain admin panel access', function (): void {
         ->assertForbidden();
 });
 
+test('the role and permission seeder does not promote existing or new users', function (): void {
+    $existingUser = User::factory()->create();
+    $this->seed(RolesAndPermissionsSeeder::class);
+    $newUser = User::factory()->create();
+    $this->seed(RolesAndPermissionsSeeder::class);
+
+    expect($existingUser->fresh()->roles)->toBeEmpty()
+        ->and($newUser->fresh()->roles)->toBeEmpty()
+        ->and($existingUser->fresh()->canAccessPanel(Filament::getPanel('admin')))->toBeFalse()
+        ->and($newUser->fresh()->canAccessPanel(Filament::getPanel('admin')))->toBeFalse();
+
+    $this->actingAs($newUser)
+        ->get('/admin')
+        ->assertForbidden();
+});
+
+test('explicitly assigning the admin role grants Filament panel access', function (): void {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    $administrator = User::factory()->create();
+    $administrator->assignRole(Role::findByName('admin', 'web'));
+    $administrator = $administrator->fresh();
+
+    expect($administrator->canAccessPanel(Filament::getPanel('admin')))->toBeTrue();
+
+    $this->actingAs($administrator)
+        ->get('/admin')
+        ->assertOk();
+});
+
 test('the role and permission seeder is idempotent', function (): void {
     $this->seed(RolesAndPermissionsSeeder::class);
     $this->seed(RolesAndPermissionsSeeder::class);

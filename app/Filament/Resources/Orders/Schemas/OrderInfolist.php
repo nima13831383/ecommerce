@@ -3,6 +3,8 @@
 namespace App\Filament\Resources\Orders\Schemas;
 
 use App\Filament\Resources\Orders\Support\OrderPresentation;
+use App\Filament\Resources\Shipments\ShipmentResource;
+use App\Filament\Resources\Shipments\Support\ShipmentPresentation;
 use App\Models\Order;
 use App\Models\OrderItem;
 use Filament\Infolists\Components\RepeatableEntry;
@@ -51,6 +53,15 @@ class OrderInfolist
                     TextEntry::make('paid_total')->label('پرداخت‌شده')->formatStateUsing(fn (mixed $state): string => OrderPresentation::money($state)),
                     TextEntry::make('created_at')->label('تاریخ ثبت')->dateTime(),
                     TextEntry::make('updated_at')->label('آخرین بروزرسانی')->dateTime(),
+                ]),
+            Section::make('اطلاعات ارسال')
+                ->columns(4)
+                ->schema([
+                    TextEntry::make('shipment.shipment_number')->label('شماره مرسوله')->placeholder('ایجاد نشده')->url(fn (Order $record): ?string => $record->shipment ? ShipmentResource::getUrl('view', ['record' => $record->shipment]) : null),
+                    TextEntry::make('shipment.status')->label('وضعیت مرسوله')->placeholder('ایجاد نشده')->badge()->formatStateUsing(fn (mixed $state): string => ShipmentPresentation::status($state))->color(fn (mixed $state): string => ShipmentPresentation::color($state)),
+                    TextEntry::make('shipment.tracking_number')->label('کد رهگیری')->placeholder('ثبت نشده'),
+                    TextEntry::make('shipment.shipped_at')->label('زمان ارسال')->dateTime()->placeholder('ثبت نشده'),
+                    TextEntry::make('shipment.delivered_at')->label('زمان تحویل')->dateTime()->placeholder('ثبت نشده'),
                 ]),
             Section::make('تصویر تاریخی مشتری و آدرس')
                 ->columns(2)

@@ -146,7 +146,12 @@ class ProductForm
             ->icon(Heroicon::OutlinedTruck)
             ->visible(fn (Get $get) => in_array($get('type'), ['simple', 'variable']) && ! $get('is_virtual'))
             ->schema([
-                TextInput::make('weight')->numeric()->suffix('kg'),
+                TextInput::make('weight')->label('وزن')->numeric()->gt(0)->suffix('کیلوگرم'),
+                TextInput::make('volume')->label('حجم')->numeric()->gt(0)->suffix('سانتی‌متر مکعب'),
+                Select::make('parcel_type')->label('نوع مرسوله / شکستنی بودن')->options([
+                    'normal' => 'عادی',
+                    'fragile' => 'شکستنی',
+                ])->default('normal')->required(),
             ])
             ->columns(2);
     }
@@ -422,6 +427,8 @@ class ProductForm
                         TextInput::make('price')->numeric()->step(1)->minValue(0)->required()->prefix('﷼'),
                         TextInput::make('sale_price')->numeric()->step(1)->minValue(0)->prefix('﷼')->lte('price'),
                         TextInput::make('stock_quantity')->label('Stock')->numeric()->default(0),
+                        TextInput::make('weight')->label('وزن جایگزین (کیلوگرم)')->numeric()->gt(0),
+                        TextInput::make('volume')->label('حجم جایگزین (سانتی‌متر مکعب)')->numeric()->gt(0),
                         Toggle::make('is_active')->label('Active')->default(true)->inline(false),
                     ])
                     ->columns(3)

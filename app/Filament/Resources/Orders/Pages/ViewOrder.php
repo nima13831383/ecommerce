@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Orders\Pages;
 use App\Enums\OrderStatus;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\Order;
+use App\Services\Fulfillment\ShipmentService;
 use App\Services\Orders\OrderService;
 use DomainException;
 use Filament\Actions\Action;
@@ -26,6 +27,7 @@ class ViewOrder extends ViewRecord
             'items.inventoryReservation',
             'payments.transactions',
             'statusHistories.user:id,name',
+            'shipment.statusHistories.user:id,name',
         ]);
     }
 
@@ -34,7 +36,7 @@ class ViewOrder extends ViewRecord
         $orderService = app(OrderService::class);
         $order = $this->getRecord();
 
-        return collect($orderService->allowedTransitionsFor($order))
+        $actions = collect($orderService->allowedTransitionsFor($order))
             ->filter(fn (OrderStatus $status): bool => in_array($status, [
                 OrderStatus::AwaitingPayment,
                 OrderStatus::Processing,
@@ -44,6 +46,24 @@ class ViewOrder extends ViewRecord
             ], true))
             ->map(fn (OrderStatus $status): Action => $this->makeTransitionAction($status))
             ->all();
+
+        array_unshift($actions, Action::make('start_fulfillment')
+            ->label('شروع پردازش ارسال')
+            ->icon('heroicon-o-truck')
+            ->authorize(fn (): bool => auth()->user()?->can('shipments.create') === true)
+            ->visible(fn (Order $record): bool => $record->shipment === null && $record->status !== OrderStatus::Cancelled)
+            ->requiresConfirmation()
+            ->schema([Textarea::make('note')->label('یادداشت عملیاتی')->maxLength(2000)])
+            ->action(function (Order $record, array $data, ShipmentService $shipments): void {
+                try {
+                    $shipments->ensure($record, auth()->id(), $data['note'] ?? null);
+                    Notification::make()->title('پردازش ارسال آغاز شد.')->success()->send();
+                } catch (DomainException $exception) {
+                    Notification::make()->title('آغاز پردازش ارسال انجام نشد.')->body($exception->getMessage())->danger()->send();
+                }
+            }));
+
+        return $actions;
     }
 
     private function makeTransitionAction(OrderStatus $status): Action

@@ -14,6 +14,17 @@ use App\Services\Cart\CartService;
 use App\Services\Checkout\CheckoutInput;
 use App\Services\Checkout\CheckoutService;
 use App\Services\Inventory\InventoryService;
+use App\Services\Settings\SettingsService;
+
+beforeEach(function (): void {
+    $settings = app(SettingsService::class);
+    $settings->update('shipping.mode', 'calculator');
+    $settings->update('shipping.origin_province_id', 2);
+    $settings->update('shipping.origin_city_id', 4391);
+    $settings->update('shipping.packages', [
+        ['id' => 'default', 'name' => 'Default', 'capacity_volume' => 1000, 'max_weight' => 30_000, 'code' => 1, 'active' => true],
+    ]);
+});
 
 function checkoutProduct(string $suffix = 'default', int $price = 100_000, int $stock = 10): Product
 {
@@ -24,6 +35,7 @@ function checkoutProduct(string $suffix = 'default', int $price = 100_000, int $
         'type' => 'simple',
         'price' => $price,
         'weight' => 5,
+        'volume' => 10,
         'status' => 'published',
     ]);
 
@@ -54,12 +66,8 @@ function checkoutInput(Cart $cart, Address $address, array $overrides = []): Che
         'cartId' => $cart->id,
         'shippingAddressId' => $address->id,
         'billingAddressId' => null,
-        'originProvinceId' => 2,
-        'originCityId' => 4391,
         'shippingService' => 'pishtaz',
-        'parcelType' => 'normal',
         'shippingPaymentType' => 'online',
-        'packageSizeId' => 1,
         'idempotencyKey' => null,
     ], $overrides));
 }
@@ -155,6 +163,35 @@ test('same idempotency key returns the same order and conflicting input is rejec
     $conflicting = checkoutInput($cart, $otherAddress, ['idempotencyKey' => 'checkout-retry']);
 
     expect(fn () => $service->placeOrder($user, $conflicting))->toThrow(DomainException::class);
+});
+
+test('coupon selection is fingerprinted while transport metadata is not', function (): void {
+    $user = User::factory()->create();
+    $product = checkoutProduct('coupon-fingerprint');
+    $cart = checkoutCart($user, $product);
+    $address = checkoutAddress($user);
+    $couponA = Coupon::query()->create(['code' => 'FINGERPRINT-A', 'type' => 'fixed_cart', 'amount' => 100]);
+    $couponB = Coupon::query()->create(['code' => 'FINGERPRINT-B', 'type' => 'fixed_cart', 'amount' => 200]);
+    app(CartService::class)->applyCoupon($cart, $couponA->code, $user->id);
+    $service = app(CheckoutService::class);
+    $input = checkoutInput($cart, $address, [
+        'idempotencyKey' => 'checkout-coupon-fingerprint',
+        'ipAddress' => '127.0.0.1',
+        'userAgent' => 'first-agent',
+    ]);
+
+    $first = $service->placeOrder($user, $input);
+    $transportRetry = checkoutInput($cart, $address, [
+        'idempotencyKey' => 'checkout-coupon-fingerprint',
+        'ipAddress' => '203.0.113.10',
+        'userAgent' => 'second-agent',
+    ]);
+
+    expect($service->placeOrder($user, $transportRetry)->order->id)->toBe($first->order->id);
+
+    $cart->forceFill(['coupon_id' => $couponB->id])->save();
+    expect(fn () => $service->placeOrder($user, checkoutInput($cart, $address, ['idempotencyKey' => 'checkout-coupon-fingerprint'])))
+        ->toThrow(DomainException::class);
 });
 
 test('wrong address owner and unavailable stock cannot place an order', function (): void {

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Coupons\RelationManagers;
 
+use App\Filament\Resources\Coupons\RelationManagers\Concerns\GuardsCouponTargeting;
 use Filament\Actions\AttachAction;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -20,6 +21,8 @@ use Illuminate\Database\Eloquent\Collection;
 
 class ProductsRelationManager extends RelationManager
 {
+    use GuardsCouponTargeting;
+
     protected static string $relationship = 'products';
 
     protected static ?string $title = 'محصولات';
@@ -42,12 +45,12 @@ class ProductsRelationManager extends RelationManager
                 IconColumn::make('is_excluded')
                     ->label('وضعیت')
                     ->boolean()
-                    ->getStateUsing(fn($record): bool => (bool) $record->pivot->is_excluded)
+                    ->getStateUsing(fn ($record): bool => (bool) $record->pivot->is_excluded)
                     ->trueIcon('heroicon-o-x-circle')
                     ->trueColor('danger')
                     ->falseIcon('heroicon-o-check-circle')
                     ->falseColor('success')
-                    ->tooltip(fn($record): string => $record->pivot->is_excluded ? 'مستثنا' : 'شامل'),
+                    ->tooltip(fn ($record): string => $record->pivot->is_excluded ? 'مستثنا' : 'شامل'),
             ])
             ->filters([
                 TernaryFilter::make('is_excluded')
@@ -56,9 +59,9 @@ class ProductsRelationManager extends RelationManager
                     ->trueLabel('فقط مستثناها')
                     ->falseLabel('فقط شامل‌ها')
                     ->queries(
-                        true: fn(Builder $query) => $query->where('coupon_product.is_excluded', true),
-                        false: fn(Builder $query) => $query->where('coupon_product.is_excluded', false),
-                        blank: fn(Builder $query) => $query,
+                        true: fn (Builder $query) => $query->where('coupon_product.is_excluded', true),
+                        false: fn (Builder $query) => $query->where('coupon_product.is_excluded', false),
+                        blank: fn (Builder $query) => $query,
                     ),
             ])
             ->headerActions([
@@ -67,13 +70,14 @@ class ProductsRelationManager extends RelationManager
                     ->multiple()
                     ->preloadRecordSelect(false)
                     ->recordSelectSearchColumns(['name'])
-                    ->schema(fn(AttachAction $action): array => [
+                    ->schema(fn (AttachAction $action): array => [
                         $action->getRecordSelect(),
                         Toggle::make('is_excluded')
                             ->label('مستثنا شود')
                             ->helperText('خاموش = کوپن فقط روی این محصولات | روشن = این محصولات از کوپن حذف شوند')
                             ->default(false),
-                    ]),
+                    ])
+                    ->before(fn (AttachAction $action) => $this->guardActionTargetingMutation($action, 'products')),
             ])
             ->recordActions([
                 EditAction::make()
@@ -82,9 +86,10 @@ class ProductsRelationManager extends RelationManager
                     ->schema([
                         Toggle::make('is_excluded')->label('مستثنا شود'),
                     ])
-                    ->fillForm(fn($record): array => [
+                    ->fillForm(fn ($record): array => [
                         'is_excluded' => (bool) $record->pivot->is_excluded,
-                    ]),
+                    ])
+                    ->before(fn (EditAction $action) => $this->guardActionTargetingMutation($action, 'products', (int) $action->getRecord()->getKey())),
 
                 DetachAction::make()->label('حذف'),
             ])
@@ -95,14 +100,14 @@ class ProductsRelationManager extends RelationManager
                         ->icon('heroicon-o-x-circle')
                         ->color('danger')
                         ->requiresConfirmation()
-                        ->action(fn(Collection $records) => $this->setExcluded($records, true))
+                        ->action(fn (Collection $records) => $this->setExcluded($records, true))
                         ->deselectRecordsAfterCompletion(),
 
                     BulkAction::make('markIncluded')
                         ->label('علامت‌گذاری به‌عنوان شامل')
                         ->icon('heroicon-o-check-circle')
                         ->color('success')
-                        ->action(fn(Collection $records) => $this->setExcluded($records, false))
+                        ->action(fn (Collection $records) => $this->setExcluded($records, false))
                         ->deselectRecordsAfterCompletion(),
 
                     DetachBulkAction::make()->label('حذف انتخاب‌شده‌ها'),
@@ -112,7 +117,8 @@ class ProductsRelationManager extends RelationManager
 
     protected function setExcluded(Collection $records, bool $state): void
     {
-        $records->each(fn($record) => $record->pivot->update(['is_excluded' => $state]));
+        $this->guardTargetingMutation('products', $state, $records->modelKeys());
+        $records->each(fn ($record) => $record->pivot->update(['is_excluded' => $state]));
 
         Notification::make()->title('وضعیت به‌روزرسانی شد')->success()->send();
     }

@@ -1,5 +1,17 @@
 # AGENTS.md
 
+## Permanent Database Safety Rule
+
+Existing database data is valuable and persistent. Never run `php artisan migrate:fresh`, `php artisan db:wipe`, schema drops, truncation, `DROP DATABASE`, `DROP TABLE`, database recreation, or any equivalent destructive database command against the working/development database unless the user explicitly authorizes that exact destructive action in the current task.
+
+Normal migrations must use:
+
+```text
+php artisan migrate
+```
+
+Automated tests must run against an isolated test database/environment. Never destroy the development database to make a test pass. If a destructive reset appears necessary, stop and report the reason and ask for explicit authorization rather than executing it.
+
 ## Project Overview
 
 This repository is a Laravel-based e-commerce platform with an integrated blog.

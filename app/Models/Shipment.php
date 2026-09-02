@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Enums\ShipmentStatus;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -17,23 +18,29 @@ class Shipment extends Model
         'shipping_method_id',
         'method_name',
         'carrier',
+        'carrier_service',
         'status',
-        'tracking_code',
+        'tracking_number',
         'tracking_url',
         'shipping_cost',
         'weight',
         'shipping_address',
+        'shipping_snapshot',
         'notes',
         'shipped_at',
         'delivered_at',
+        'cancelled_at',
     ];
 
     protected $casts = [
-        'shipping_cost'    => 'decimal:0',
-        'weight'           => 'decimal:3',
+        'status' => ShipmentStatus::class,
+        'shipping_cost' => 'decimal:0',
+        'weight' => 'decimal:3',
         'shipping_address' => 'array',
-        'shipped_at'       => 'datetime',
-        'delivered_at'     => 'datetime',
+        'shipping_snapshot' => 'array',
+        'shipped_at' => 'datetime',
+        'delivered_at' => 'datetime',
+        'cancelled_at' => 'datetime',
     ];
 
     public function order(): BelongsTo
@@ -49,5 +56,10 @@ class Shipment extends Model
     public function items(): HasMany
     {
         return $this->hasMany(ShipmentItem::class);
+    }
+
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(ShipmentStatusHistory::class);
     }
 }

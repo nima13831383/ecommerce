@@ -4,6 +4,8 @@ namespace App\Services\Orders;
 
 use App\Enums\InventoryReservationStatus;
 use App\Enums\OrderStatus;
+use App\Events\CustomerLifecycle\OrderCancelled;
+use App\Events\CustomerLifecycle\OrderPlaced;
 use App\Exceptions\InvalidReservationStateException;
 use App\Models\InventoryReservation;
 use App\Models\Order;
@@ -54,7 +56,7 @@ class OrderService
         }
 
         try {
-            return DB::transaction(function () use ($lines, $details, $customer, $actorId, $idempotency, $context): Order {
+            $order = DB::transaction(function () use ($lines, $details, $customer, $actorId, $idempotency, $context): Order {
                 $pricing = $context?->pricing ?? new OrderPricing;
                 $order = new Order;
                 $order->forceFill([
@@ -128,6 +130,10 @@ class OrderService
 
                 return $order->load(['items.inventoryReservation', 'statusHistories']);
             });
+
+            event(new OrderPlaced($order));
+
+            return $order;
         } catch (QueryException $exception) {
             if ($idempotency === null) {
                 throw $exception;
@@ -147,7 +153,7 @@ class OrderService
     {
         $to = $to instanceof OrderStatus ? $to : OrderStatus::from($to);
 
-        return DB::transaction(function () use ($order, $to, $actorId, $comment): Order {
+        $order = DB::transaction(function () use ($order, $to, $actorId, $comment): Order {
             $order = Order::query()->lockForUpdate()->findOrFail($order->id);
             $from = $order->status;
 
@@ -174,6 +180,12 @@ class OrderService
 
             return $order->load('statusHistories');
         });
+
+        if ($to === OrderStatus::Cancelled) {
+            event(new OrderCancelled($order));
+        }
+
+        return $order;
     }
 
     public function findIdempotent(string $key, string $fingerprint): ?Order

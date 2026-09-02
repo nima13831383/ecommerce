@@ -81,6 +81,8 @@ trait ConfiguresProductVariations
                 'price' => $variation->price,
                 'sale_price' => $variation->sale_price,
                 'stock_quantity' => $variation->stock_quantity,
+                'weight' => $variation->weight,
+                'volume' => $variation->volume,
                 'is_active' => $variation->is_active,
                 'is_dismissed' => $variation->is_dismissed,
             ])

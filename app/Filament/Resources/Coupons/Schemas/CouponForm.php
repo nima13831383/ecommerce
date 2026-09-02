@@ -26,8 +26,6 @@ class CouponForm
                     ->required()
                     ->numeric()
                     ->default(0),
-                Toggle::make('free_shipping')
-                    ->required(),
                 TextInput::make('min_spend')
                     ->numeric()
                     ->default(null),
@@ -49,8 +47,9 @@ class CouponForm
                     ->default(0),
                 Toggle::make('individual_use_only')
                     ->required(),
-                Toggle::make('exclude_sale_items')
-                    ->required(),
+                Toggle::make('exclude_discounted_products')
+                    ->label('عدم اعمال روی محصولات دارای تخفیف')
+                    ->default(false),
                 Toggle::make('is_active')
                     ->required(),
                 DateTimePicker::make('starts_at'),

@@ -267,6 +267,7 @@ class ProductVariantService
             'stock_quantity',
             'stock_status',
             'weight',
+            'volume',
             'image',
             'is_active',
             'is_dismissed',
@@ -282,6 +283,12 @@ class ProductVariantService
 
         if ($salePrice !== null && $salePrice > $price) {
             throw new DomainException('قیمت فروش ویژه نمی‌تواند بیشتر از قیمت عادی باشد.');
+        }
+
+        foreach (['weight', 'volume'] as $field) {
+            if (array_key_exists($field, $attributes) && filled($attributes[$field]) && (float) $attributes[$field] <= 0) {
+                throw new DomainException('وزن و حجم جایگزین باید بیشتر از صفر باشند.');
+            }
         }
 
         $sku = filled($attributes['sku'] ?? null) ? trim((string) $attributes['sku']) : null;

@@ -132,3 +132,10 @@ test('invalid coupon configuration is rejected at the service boundary', functio
     expect(fn () => app(CouponService::class)->assertValidConfiguration($coupon))
         ->toThrow(CouponConfigurationException::class);
 });
+it('accepts only integral finite numeric values for Coupon Rial amounts at the service boundary', function (): void {
+    $service = app(CouponService::class);
+
+    expect(fn () => $service->assertValidConfigurationData(['code' => 'INT-FLOAT', 'type' => 'fixed_cart', 'amount' => 29.0]))->not->toThrow(CouponConfigurationException::class)
+        ->and(fn () => $service->assertValidConfigurationData(['code' => 'FRACTION', 'type' => 'fixed_cart', 'amount' => 29.1]))->toThrow(CouponConfigurationException::class)
+        ->and(fn () => $service->assertValidConfigurationData(['code' => 'INFINITY', 'type' => 'fixed_cart', 'amount' => INF]))->toThrow(CouponConfigurationException::class);
+});

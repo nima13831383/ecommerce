@@ -8,7 +8,6 @@ use App\Models\Cart;
 use App\Models\CartItem;
 use App\Models\Coupon;
 use App\Models\Order;
-use App\Models\ProductVariation;
 use App\Models\User;
 use App\Services\Addresses\AddressService;
 use App\Services\Cart\CartService;
@@ -16,11 +15,10 @@ use App\Services\CouponService;
 use App\Services\Orders\OrderCreationContext;
 use App\Services\Orders\OrderPricing;
 use App\Services\Orders\OrderService;
-use App\Services\Shipping\Data\WordpressShippingDataLoader;
-use App\Services\Shipping\DTO\ShippingQuoteInput;
 use App\Services\Shipping\DTO\ShippingQuoteResult;
-use App\Services\Shipping\PostShippingCalculator;
+use App\Services\Shipping\ShippingCostResolver;
 use App\Services\Shipping\ShippingOptionCatalog;
+use DomainException;
 use Illuminate\Support\Facades\DB;
 
 class CheckoutService
@@ -28,9 +26,8 @@ class CheckoutService
     public function __construct(
         private readonly CartService $carts,
         private readonly AddressService $addresses,
-        private readonly PostShippingCalculator $shipping,
+        private readonly ShippingCostResolver $shipping,
         private readonly ShippingOptionCatalog $shippingOptions,
-        private readonly WordpressShippingDataLoader $geography,
         private readonly CouponService $coupons,
         private readonly OrderService $orders,
     ) {}
@@ -57,52 +54,61 @@ class CheckoutService
             return $this->resultFromOrder($cart, $existing);
         }
 
-        return DB::transaction(function () use ($user, $cart, $input, $actorId, $fingerprint): CheckoutResult {
-            $cart = $this->carts->getForUser($user, $cart->id);
-            $prepared = $this->prepare($user, $cart, $input);
-            /** @var Cart $preparedCart */
-            $preparedCart = $prepared['cart'];
-            /** @var array<string, mixed> $details */
-            $details = $prepared['details'];
-            /** @var OrderPricing $pricing */
-            $pricing = $prepared['pricing'];
+        try {
+            return DB::transaction(function () use ($user, $cart, $input, $actorId, $fingerprint): CheckoutResult {
+                $cart = $this->carts->getForUser($user, $cart->id);
+                $prepared = $this->prepare($user, $cart, $input);
+                /** @var Cart $preparedCart */
+                $preparedCart = $prepared['cart'];
+                /** @var array<string, mixed> $details */
+                $details = $prepared['details'];
+                /** @var OrderPricing $pricing */
+                $pricing = $prepared['pricing'];
 
-            $order = $this->orders->create(
-                $this->lines($preparedCart),
-                $details,
-                $actorId,
-                new OrderCreationContext($pricing, trim($input->idempotencyKey), $fingerprint),
-            );
+                $order = $this->orders->create(
+                    $this->lines($preparedCart),
+                    $details,
+                    $actorId,
+                    new OrderCreationContext($pricing, trim($input->idempotencyKey), $fingerprint),
+                );
 
-            if (! $order->wasRecentlyCreated) {
-                return $this->resultFromOrder($preparedCart, $order);
+                if (! $order->wasRecentlyCreated) {
+                    return $this->resultFromOrder($preparedCart, $order);
+                }
+
+                if ($pricing->couponId !== null) {
+                    $coupon = Coupon::query()->findOrFail($pricing->couponId);
+                    $this->coupons->apply($coupon, $preparedCart, $order, $user->id);
+                }
+
+                $converted = $this->carts->convert($preparedCart);
+
+                return new CheckoutResult(
+                    cart: $converted,
+                    order: $order,
+                    shippingQuote: $prepared['quote'],
+                    subtotal: $order->items_subtotal,
+                    discountTotal: $order->discount_total,
+                    taxTotal: $order->tax_total,
+                    shippingTotal: $order->shipping_total,
+                    grandTotal: $order->grand_total,
+                );
+            });
+        } catch (DomainException $exception) {
+            $existing = $this->orders->findIdempotent($input->idempotencyKey, $fingerprint);
+
+            if ($existing) {
+                return $this->resultFromOrder($cart, $existing);
             }
 
-            if ($pricing->couponId !== null) {
-                $coupon = Coupon::query()->findOrFail($pricing->couponId);
-                $this->coupons->apply($coupon, $preparedCart, $order, $user->id);
-            }
-
-            $converted = $this->carts->convert($preparedCart);
-
-            return new CheckoutResult(
-                cart: $converted,
-                order: $order,
-                shippingQuote: $prepared['quote'],
-                subtotal: $order->items_subtotal,
-                discountTotal: $order->discount_total,
-                taxTotal: $order->tax_total,
-                shippingTotal: $order->shipping_total,
-                grandTotal: $order->grand_total,
-            );
-        });
+            throw $exception;
+        }
     }
 
     /** @return array{result: CheckoutResult, cart: Cart, details: array<string, mixed>, pricing: OrderPricing, quote: ShippingQuoteResult} */
     private function prepare(User $user, Cart $cart, CheckoutInput $input): array
     {
         $this->assertShippingOptions($input);
-        $this->assertOrigin($input);
 
         $recalculated = $this->carts->recalculate($cart, $user->id);
         if ($recalculated->hasIssues()) {
@@ -127,19 +133,13 @@ class CheckoutService
             throw new CheckoutValidationException('The shipping address must contain a valid province and city.');
         }
 
-        $quoteInput = new ShippingQuoteInput(
-            originProvinceId: $input->originProvinceId,
-            originCityId: $input->originCityId,
+        $quote = $this->shipping->quote(
+            cart: $cart,
             destinationProvinceId: (int) $shippingAddressSnapshot['province_id'],
             destinationCityId: (int) $shippingAddressSnapshot['city_id'],
-            weightGrams: $this->weightGrams($cart),
-            declaredValueRials: (int) $cart->subtotal,
-            parcelType: $input->parcelType,
-            paymentType: $input->shippingPaymentType,
-            packageSizeId: $input->packageSizeId,
             service: $input->shippingService,
+            paymentType: $input->shippingPaymentType,
         );
-        $quote = $this->shipping->calculate($quoteInput);
         if ($quote->available === false) {
             throw new CheckoutValidationException('The selected shipping service is unavailable for this destination.');
         }
@@ -168,11 +168,21 @@ class CheckoutService
             'service' => $quote->service,
             'cost' => $quote->total,
             'currency' => $quote->currency,
-            'parcel_type' => $input->parcelType,
+            'mode' => $quote->metadata['calculation_mode'] ?? 'calculator',
+            'origin_province_id' => $quote->metadata['origin_province_id'] ?? null,
+            'origin_city_id' => $quote->metadata['origin_city_id'] ?? null,
+            'origin_province_name' => $quote->metadata['origin_province_name'] ?? null,
+            'origin_city_name' => $quote->metadata['origin_city_name'] ?? null,
+            'destination_province_id' => $quote->metadata['destination_province_id'] ?? $shippingAddressSnapshot['province_id'],
+            'destination_city_id' => $quote->metadata['destination_city_id'] ?? $shippingAddressSnapshot['city_id'],
+            'destination_province_name' => $quote->metadata['destination_province_name'] ?? null,
+            'destination_city_name' => $quote->metadata['destination_city_name'] ?? null,
+            'parcel_type' => $quote->metadata['parcel_type'] ?? null,
             'payment_type' => $input->shippingPaymentType,
-            'package_size_id' => $input->packageSizeId,
-            'weight_grams' => $quoteInput->weightGrams,
-            'declared_value_rials' => $quoteInput->declaredValueRials,
+            'package_size_id' => $quote->metadata['package']['code'] ?? null,
+            'weight_grams' => $quote->metadata['weight_grams'] ?? null,
+            'volume' => $quote->metadata['volume'] ?? null,
+            'declared_value_rials' => (int) $cart->subtotal,
             'breakdown' => $quote->breakdown,
             'metadata' => $quote->metadata,
         ];
@@ -195,7 +205,7 @@ class CheckoutService
             'customer_note' => $input->customerNote,
             'ip_address' => $input->ipAddress,
             'user_agent' => $input->userAgent,
-            'reservation_expires_at' => $input->reservationExpiresAt ?? now()->addMinutes(30),
+            'reservation_expires_at' => now()->addMinutes(30),
         ];
 
         $grandTotal = (int) $cart->grand_total + $quote->total;
@@ -227,37 +237,10 @@ class CheckoutService
         ], fn (mixed $value): bool => $value !== null))->values()->all();
     }
 
-    private function weightGrams(Cart $cart): float
-    {
-        $total = 0.0;
-        foreach ($cart->items as $item) {
-            $weightKg = $item->variation instanceof ProductVariation && $item->variation->weight !== null
-                ? (float) $item->variation->weight
-                : (float) ($item->product?->weight ?? 0);
-            if ($weightKg <= 0) {
-                throw new CheckoutValidationException('Every shippable cart item must have a positive weight.');
-            }
-            $total += $weightKg * 1000 * (int) $item->quantity;
-        }
-
-        return $total;
-    }
-
     private function assertShippingOptions(CheckoutInput $input): void
     {
-        if (! array_key_exists($input->shippingService, $this->shippingOptions->services())
-            || ! array_key_exists($input->parcelType, $this->shippingOptions->parcelTypes())
-            || ! array_key_exists($input->shippingPaymentType, $this->shippingOptions->paymentTypes())
-            || ! array_key_exists($input->packageSizeId, $this->shippingOptions->packageSizes())) {
+        if (! array_key_exists($input->shippingService, $this->shippingOptions->services())) {
             throw new CheckoutValidationException('One or more shipping options are invalid.');
-        }
-    }
-
-    private function assertOrigin(CheckoutInput $input): void
-    {
-        if ($this->geography->provinceName($input->originProvinceId) === null
-            || $this->geography->cityName($input->originCityId, $input->originProvinceId) === null) {
-            throw new CheckoutValidationException('The shipping origin province and city are invalid.');
         }
     }
 
@@ -283,12 +266,10 @@ class CheckoutService
             'cart_id' => $cart->id,
             'shipping_address_id' => $input->shippingAddressId,
             'billing_address_id' => $input->billingAddressId,
-            'origin_province_id' => $input->originProvinceId,
-            'origin_city_id' => $input->originCityId,
             'shipping_service' => $input->shippingService,
-            'parcel_type' => $input->parcelType,
             'payment_type' => $input->shippingPaymentType,
-            'package_size_id' => $input->packageSizeId,
+            'coupon_id' => $cart->coupon_id === null ? null : (int) $cart->coupon_id,
+            'customer_note' => $input->customerNote,
             'lines' => $lines,
         ], JSON_THROW_ON_ERROR));
     }
