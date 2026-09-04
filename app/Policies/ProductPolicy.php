@@ -2,7 +2,10 @@
 
 namespace App\Policies;
 
+use App\Enums\InventoryReservationStatus;
+use App\Models\InventoryReservation;
 use App\Models\Product;
+use App\Models\ProductVariation;
 use App\Models\User;
 
 class ProductPolicy
@@ -49,11 +52,35 @@ class ProductPolicy
 
     public function forceDelete(User $user, Product $product): bool
     {
-        return $user->can('products.force-delete');
+        return $user->can('products.force-delete')
+            && ! $this->hasActiveInventoryReservation($product);
     }
 
     public function forceDeleteAny(User $user): bool
     {
         return $user->can('products.force-delete');
+    }
+
+    private function hasActiveInventoryReservation(Product $product): bool
+    {
+        $variationIds = $this->variationIds($product);
+
+        return InventoryReservation::query()
+            ->where(function ($query) use ($product, $variationIds): void {
+                $query->where(function ($query) use ($product): void {
+                    $query->where('inventory_owner_type', Product::class)
+                        ->where('inventory_owner_id', $product->id);
+                })->orWhere(function ($query) use ($variationIds): void {
+                    $query->where('inventory_owner_type', ProductVariation::class)
+                        ->whereIn('inventory_owner_id', $variationIds);
+                });
+            })
+            ->where('status', InventoryReservationStatus::Active)
+            ->exists();
+    }
+
+    private function variationIds(Product $product)
+    {
+        return ProductVariation::query()->where('product_id', $product->id)->pluck('id');
     }
 }

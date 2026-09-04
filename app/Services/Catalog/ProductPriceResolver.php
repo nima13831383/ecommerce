@@ -53,10 +53,12 @@ class ProductPriceResolver
             return $this->pricesForSimpleProduct($product);
         }
 
-        $variations = $product->variations()
-            ->where('is_active', true)
-            ->select(['id', 'product_id', 'price', 'sale_price', 'sale_starts_at', 'sale_ends_at'])
-            ->cursor();
+        $variations = $product->relationLoaded('variations')
+            ? $product->variations->where('is_active', true)
+            : $product->variations()
+                ->where('is_active', true)
+                ->select(['id', 'product_id', 'price', 'sale_price', 'sale_starts_at', 'sale_ends_at'])
+                ->cursor();
 
         $minimumPrice = null;
         $maximumPrice = null;

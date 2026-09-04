@@ -2,10 +2,11 @@
 
 namespace App\Filament\Resources\Products\RelationManagers;
 
+use App\Models\ProductImage;
+use Filament\Actions\BulkActionGroup;
 use Filament\Actions\CreateAction;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
-use Filament\Actions\BulkActionGroup;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\TextInput;
@@ -16,6 +17,7 @@ use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Auth\Access\AuthorizationException;
 
 class ImagesRelationManager extends RelationManager
 {
@@ -29,6 +31,7 @@ class ImagesRelationManager extends RelationManager
             FileUpload::make('path')
                 ->label('Image')
                 ->image()
+                ->disk(ProductImage::storageDisk())
                 ->directory('products')
                 ->imageEditor()
                 ->required()
@@ -53,6 +56,7 @@ class ImagesRelationManager extends RelationManager
         return $table
             ->recordTitleAttribute('alt')
             ->reorderable('sort_order')
+            ->authorizeReorder(fn (): bool => $this->canManageImages())
             ->defaultSort('sort_order')
             ->columns([
                 ImageColumn::make('path')
@@ -73,16 +77,41 @@ class ImagesRelationManager extends RelationManager
                     ->sortable(),
             ])
             ->headerActions([
-                CreateAction::make(),
+                CreateAction::make()->authorize(fn (): bool => $this->canManageImages()),
             ])
             ->recordActions([
-                EditAction::make(),
-                DeleteAction::make(),
+                EditAction::make()->authorize(fn (): bool => $this->canManageImages()),
+                DeleteAction::make()->authorize(fn (): bool => $this->canManageImages()),
             ])
             ->toolbarActions([
                 BulkActionGroup::make([
-                    DeleteBulkAction::make(),
+                    DeleteBulkAction::make()->authorize(fn (): bool => $this->canManageImages()),
                 ]),
             ]);
+    }
+
+    private function canManageImages(): bool
+    {
+        return auth()->user()?->can('update', $this->getOwnerRecord()) === true;
+    }
+
+    /** @param array<int|string> $order */
+    public function reorderTable(array $order, int|string|null $draggedRecordKey = null): void
+    {
+        if (! $this->canManageImages()) {
+            throw new AuthorizationException;
+        }
+
+        $imageIds = array_values(array_unique($order));
+        $belongsToProduct = ProductImage::query()
+            ->where('product_id', $this->getOwnerRecord()->getKey())
+            ->whereIn('id', $imageIds)
+            ->count() === count($imageIds);
+
+        if (! $belongsToProduct) {
+            throw new AuthorizationException;
+        }
+
+        parent::reorderTable($order, $draggedRecordKey);
     }
 }

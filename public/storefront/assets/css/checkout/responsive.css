@@ -1,0 +1,3 @@
+@media(max-width:900px){.checkout-layout{display:block}.checkout-summary{position:static;margin-top:18px}.checkout-card{padding:17px}.checkout-heading h1{font-size:1.35rem}}
+@media(max-width:520px){.checkout-page{padding-block:18px 42px}.checkout-breadcrumb{margin-bottom:18px}.field-grid{grid-template-columns:1fr;gap:10px}.field-wide{grid-column:auto}.checkout-card__heading{align-items:flex-start;gap:10px}.checkout-card__heading span{line-height:1.7;text-align:left}.choice-card{padding:12px 10px}.checkout-summary__inner{padding:17px}.summary-products strong{font-size:.65rem}.terms{font-size:.68rem}}
+@media(prefers-reduced-motion:reduce){.new-address{transition:none}}

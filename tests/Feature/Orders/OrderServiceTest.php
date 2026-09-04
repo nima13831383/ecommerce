@@ -205,6 +205,7 @@ test('it rejects direct order status mutation and retains snapshots after produc
 
     expect(fn () => $order->save())->toThrow(LogicException::class);
 
+    app(OrderService::class)->transitionStatus($order, OrderStatus::Cancelled);
     $product->forceDelete();
     $item = $order->items()->firstOrFail();
 

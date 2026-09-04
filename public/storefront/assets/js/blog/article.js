@@ -1,0 +1,1 @@
+(function(){'use strict';const button=document.querySelector('[data-copy-link]');const feedback=document.querySelector('[data-copy-feedback]');if(!button)return;button.addEventListener('click',async()=>{try{await navigator.clipboard.writeText(location.href)}catch(e){}if(feedback){feedback.hidden=false;setTimeout(()=>feedback.hidden=true,2200)}})}());

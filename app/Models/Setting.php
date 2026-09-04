@@ -33,7 +33,7 @@ class Setting extends Model
 
             return match ($this->type) {
                 'boolean' => filter_var($raw, FILTER_VALIDATE_BOOLEAN),
-                'integer' => (int) $raw,
+                'integer', 'money' => (int) $raw,
                 'float' => (float) $raw,
                 'json' => is_array($d = json_decode((string) $raw, true)) ? $d : [],
                 default => $raw,

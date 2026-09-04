@@ -1,0 +1,2 @@
+.site-footer{margin-top:26px;border-top:1px solid #f0ebea;padding-top:24px}.footer-grid{display:grid;grid-template-columns:1.2fr repeat(3,1fr);gap:34px}.footer-column h3{font-size:.86rem;margin-bottom:10px}.footer-column p,.footer-column a{display:block;color:#655c59;font-size:.72rem;margin-block:5px}.footer-social{display:flex;gap:8px;margin-top:14px}.footer-bottom{border-top:1px solid #f1eceb;margin-top:24px;padding-block:12px;text-align:center;color:#8a817f;font-size:.66rem}
+.site-footer{border-radius:0}

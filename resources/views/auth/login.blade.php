@@ -1,47 +1,41 @@
-<x-guest-layout>
-    <!-- Session Status -->
-    <x-auth-session-status class="mb-4" :status="session('status')" />
+@extends('storefront.layouts.auth')
 
-    <form method="POST" action="{{ route('login') }}">
-        @csrf
+@section('content')
+    <div class="auth-container auth-shell">
+        <section class="auth-card" aria-labelledby="login-title">
+            <div class="auth-card__icon" aria-hidden="true">🔒</div>
+            <h1 id="login-title">ورود به حساب کاربری</h1>
+            <p class="auth-card__support">برای ادامه خرید وارد حساب کاربری خود شوید.</p>
 
-        <!-- Email Address -->
-        <div>
-            <x-input-label for="email" :value="__('Email')" />
-            <x-text-input id="email" class="block mt-1 w-full" type="email" name="email" :value="old('email')" required autofocus autocomplete="username" />
-            <x-input-error :messages="$errors->get('email')" class="mt-2" />
-        </div>
-
-        <!-- Password -->
-        <div class="mt-4">
-            <x-input-label for="password" :value="__('Password')" />
-
-            <x-text-input id="password" class="block mt-1 w-full"
-                            type="password"
-                            name="password"
-                            required autocomplete="current-password" />
-
-            <x-input-error :messages="$errors->get('password')" class="mt-2" />
-        </div>
-
-        <!-- Remember Me -->
-        <div class="block mt-4">
-            <label for="remember_me" class="inline-flex items-center">
-                <input id="remember_me" type="checkbox" class="rounded dark:bg-gray-900 border-gray-300 dark:border-gray-700 text-indigo-600 shadow-sm focus:ring-indigo-500 dark:focus:ring-indigo-600 dark:focus:ring-offset-gray-800" name="remember">
-                <span class="ms-2 text-sm text-gray-600 dark:text-gray-400">{{ __('Remember me') }}</span>
-            </label>
-        </div>
-
-        <div class="flex items-center justify-end mt-4">
-            @if (Route::has('password.request'))
-                <a class="underline text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-100 rounded-md focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 dark:focus:ring-offset-gray-800" href="{{ route('password.request') }}">
-                    {{ __('Forgot your password?') }}
-                </a>
+            @if (session('status'))
+                <p class="auth-message" role="status">{{ session('status') }}</p>
+            @endif
+            @if ($errors->any())
+                <div class="auth-message" role="alert">
+                    {{ $errors->first() }}
+                </div>
             @endif
 
-            <x-primary-button class="ms-3">
-                {{ __('Log in') }}
-            </x-primary-button>
-        </div>
-    </form>
-</x-guest-layout>
+            <form class="auth-form" method="POST" action="{{ route('login') }}">
+                @csrf
+                <label class="auth-field" for="email">ایمیل
+                    <span class="auth-input-wrap">
+                        <input id="email" name="email" type="email" value="{{ old('email') }}" required autofocus autocomplete="username">
+                    </span>
+                </label>
+                <label class="auth-field" for="password">رمز عبور
+                    <span class="auth-input-wrap password-wrap">
+                        <input id="password" name="password" type="password" required autocomplete="current-password">
+                        <button class="password-toggle" type="button" data-password-toggle aria-controls="password" aria-label="نمایش رمز عبور">◉</button>
+                    </span>
+                </label>
+                <div class="auth-row">
+                    <label class="auth-check"><input type="checkbox" name="remember"> مرا به خاطر بسپار</label>
+                    <a class="auth-link" href="{{ route('password.request') }}">رمز عبور را فراموش کرده‌اید؟</a>
+                </div>
+                <button class="auth-submit" type="submit">ورود</button>
+            </form>
+            <p class="auth-switch">حساب ندارید؟ <a href="{{ route('register') }}">ثبت‌نام کنید</a></p>
+        </section>
+    </div>
+@endsection

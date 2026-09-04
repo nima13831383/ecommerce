@@ -17,6 +17,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Validation\Rule;
 use UnitEnum;
 
 class PostCategoryResource extends Resource
@@ -39,7 +40,8 @@ class PostCategoryResource extends Resource
     {
         return $schema->components([
             TextInput::make('name')->label('نام')->required()->maxLength(255),
-            TextInput::make('slug')->label('نامک')->maxLength(255),
+            TextInput::make('slug')->label('نامک')->maxLength(255)
+                ->rule(fn (?PostCategory $record) => Rule::unique('post_categories', 'slug')->ignore($record?->getKey())),
             Select::make('parent_id')->label('دسته والد')->options(fn (?PostCategory $record): array => PostCategory::query()->when($record, fn ($q) => $q->whereKeyNot($record->getKey()))->orderBy('name')->pluck('name', 'id')->all())->searchable()->preload(false),
             Textarea::make('description')->label('توضیحات')->rows(3)->columnSpanFull(),
         ])->columns(2);

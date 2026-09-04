@@ -1,0 +1,17 @@
+/* Shared visual shell for the standalone authentication pages. */
+.auth-body { min-width: 320px; color: #332b2d; background: #fffaf9; }
+.auth-container { width: min(100% - 48px, 1090px); margin-inline: auto; }
+.auth-page { position: relative; isolation: isolate; overflow: clip; min-height: 710px; padding: 40px 24px 42px; background: #fffaf9 url("../../../loginbackground.png") center center / cover no-repeat; }
+.auth-page::before, .auth-page::after { content: ""; position: absolute; inset-inline: 0; pointer-events: none; }
+.auth-page::before { z-index: -2; inset-block: 0; background: rgba(255,255,255,.05); }
+.auth-page::after { z-index: -1; bottom: 0; height: clamp(130px, 16vw, 230px); background: linear-gradient(to bottom, rgba(255,250,249,0), rgba(255,250,249,.72) 54%, #fffaf9 100%); }
+.auth-shell { position: relative; z-index: 1; }
+.auth-shell { min-height: 620px; display: grid; place-items: center; }
+.auth-trust { display: grid; grid-template-columns: repeat(4, 1fr); margin-block: 0 38px; border: 1px solid #f0e4e3; border-radius: 17px; background: rgba(255,253,253,.9); box-shadow: 0 10px 24px rgba(72,39,42,.05); }
+.auth-trust__item { min-width: 0; min-height: 88px; display: flex; align-items: center; justify-content: center; gap: 12px; padding: 12px 18px; }
+.auth-trust__item p { min-width: 0; }
+.auth-trust__item + .auth-trust__item { border-inline-start: 1px solid #eee3e2; }
+.auth-trust__item svg { width: 31px; height: 31px; flex: 0 0 auto; }
+.auth-trust strong, .auth-trust span { display: block; }.auth-trust strong { font-size: .78rem; }.auth-trust span { margin-top: 4px; color: #71696a; font-size: .65rem; }
+.auth-symbols { position: absolute; width: 0; height: 0; overflow: hidden; }
+.auth-card__icon svg, .auth-input-wrap > svg, .auth-trust svg { fill: none; stroke: currentColor; stroke-width: 1.7; stroke-linecap: round; stroke-linejoin: round; }

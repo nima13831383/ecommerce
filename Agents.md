@@ -754,38 +754,142 @@ Important domain invariants should also be protected inside the domain/applicati
 
 # Frontend
 
-The storefront will use:
+The final customer storefront will be implemented as **Laravel Blade SSR** inside this Laravel application. The website language is Persian/Farsi and the storefront must support RTL content and SEO-friendly server-rendered HTML.
+
+The raw template at `D:\uni-shop-project\front` is an existing static HTML/Tailwind/jQuery design source. It is not a separate frontend application, React/Vue app, remote SPA, API-only client, or separately deployed customer application. Do not recreate its design from scratch unless explicitly requested.
+
+## Frontend / Storefront Integration Context
+
+The Laravel backend and the raw template directory are separate codebases, but the final storefront is same-application Laravel SSR. Before implementing any storefront page:
+
+1. Inspect the existing files under `D:\uni-shop-project\front` first.
+2. Reuse its RTL/Persian visual language, responsive behavior, components, assets, page structures, header/footer, product cards, account pages, cart/checkout layouts, and blog layouts.
+3. Progressively convert the template into Blade layouts, components, partials, and pages; do not replace it with a generic generated UI.
+4. Preserve existing frontend behavior and styling unless a redesign is explicitly requested.
+
+The historical backend readiness audit remains documented in `FRONTEND_INTEGRATION_READINESS_2026-09-03.md`. It identified the lack of customer HTTP contracts at that time; it does not change the final Blade architecture defined here.
+
+### Deployment and Authentication
+
+The default storefront deployment is same-application/same-origin Laravel SSR. Use:
+
+* Laravel `web` middleware
+* Breeze session authentication
+* Laravel CSRF protection
+* Blade forms
+* server-side web controllers/actions
+* redirects, validation bags, and session flash data where appropriate
+
+Do not introduce Sanctum, bearer tokens, SPA authentication, CORS architecture, or cross-origin cookie complexity for the Blade storefront unless the user explicitly changes the deployment architecture. The existing Phase 2A JSON session-auth endpoints may remain available, but Blade pages do not need to call the application's own API over HTTP.
+
+### Existing Storefront API History and Status
+
+Preserve the existing `/api/v1` work and its reports. Phase 1 provides tested public Product catalog and variation-resolution endpoints, and Phase 2A provides tested JSON session authentication endpoints. These APIs may serve future mobile clients, AJAX interactions where justified, external integrations, or other API consumers.
+
+The current preserved contracts are:
+
+* `GET /api/v1/products`
+* `GET /api/v1/products/{product:slug}`
+* `POST /api/v1/products/{product}/resolve-variation`
+* `POST /api/v1/auth/register`
+* `POST /api/v1/auth/login`
+* `POST /api/v1/auth/logout`
+* `GET /api/v1/auth/me`
+
+The API reports and tests remain part of the project history. There are still no customer HTTP contracts for Cart, Coupon mutations, Address book/geography, Shipping quote, Checkout, Payment, customer Orders, Shipment tracking, customer Notifications, or Blog listing/detail unless a later task adds them.
+
+The Blade storefront should not create unnecessary internal HTTP round-trips:
 
 ```text
-Laravel Blade
-SSR
+Blade/Web Controller
+        -> shared Query / Domain Service
+        -> ViewModel / Blade data
 ```
 
-The website language is Persian/Farsi.
+Do not route normal SSR rendering through `/api/v1` merely to call another controller. Share the underlying authoritative query/service layers between API and Blade adapters. Do not make frontend code depend directly on Laravel models, database tables, or service internals.
 
-The frontend must support:
+### Server Authority Boundary
 
-```text
-RTL
-Persian content
-SEO-friendly server-rendered HTML
-```
+Blade templates and JavaScript may collect semantic choices and format/display server results, but must never become authoritative for:
 
-However:
+* Product price, effective/sale price, or price state
+* discounts, Coupon validity, targeting, or usage limits
+* tax
+* available inventory or reservation state
+* shipping amount, package, origin, weight, volume, or parcel classification
+* Checkout totals
+* Payment amount or verification
+* Order status transitions
 
-**Do not implement or redesign the storefront yet.**
+These values remain in Laravel domain services. Do not duplicate `ProductPriceResolver`, `ProductVariantService` signature logic, `CouponService`, `TaxCalculator`, `InventoryService`, `ShippingCostResolver`, Checkout pricing/fingerprint logic, Payment verification, or Order transition rules in Blade or JavaScript.
 
-No final frontend template/design has been provided.
+### Blade Conversion Strategy
 
-Until explicitly instructed:
+When storefront implementation begins, progressively convert the raw template into structures such as:
 
-* do not spend significant time on storefront styling
-* do not introduce SPA frameworks
-* do not migrate the project to React/Vue/Next/Nuxt
-* do not replace Blade
-* do not create speculative public storefront pages
+* `resources/views/layouts/...`
+* Blade components
+* partials
+* storefront pages
+* account pages
 
-Backend and admin architecture should still remain compatible with the future Blade SSR frontend.
+Extract repeated visual units such as header, footer, navigation, product card, price display, gallery, breadcrumbs, pagination, forms, and alerts. Avoid both one giant Blade file and over-componentizing trivial one-off markup.
+
+### Web Controllers and View Data
+
+Customer-facing SSR pages should use dedicated web/storefront controllers or invokable actions. Keep controllers thin and reuse existing layers such as `ProductCatalogQuery`, `ProductPriceResolver`, `ProductVariantService`, `CartService`, `CouponService`, `AddressService`, `ShippingCostResolver`, `CheckoutService`, `OrderService`, and `PaymentService`.
+
+When raw models expose too much internal state, pass dedicated query results, DTOs, presenters/view models, or explicitly prepared arrays. Blade must not depend on inventory ledgers, reservations, internal audit structures, provider payloads, or other admin-only state.
+
+### JavaScript and Variable Products
+
+The jQuery/JavaScript from the raw template may provide menus, modals, tabs, quantity UX, gallery switching, dynamic option selection, and progressive enhancement. For interactions requiring server truth, use normal Blade submissions or small AJAX endpoints only where the UX materially benefits. Do not convert the storefront into an SPA.
+
+Blade may render Product attributes and options, and JavaScript may assist selection, but authoritative variation resolution must use the existing `ProductVariantService`/canonical logic. The frontend must not recreate variation signatures. The existing API resolver may remain available, while Blade can call the shared service directly.
+
+### Cart, Addresses, Shipping, and Checkout
+
+Future Blade Cart pages should call `CartService` through Laravel web controllers and use the authenticated Laravel session/user for ownership. Do not create token API architecture merely for the Blade storefront. Guest-cart behavior should be designed for the Blade/session flow when that phase begins.
+
+Address and checkout forms must use `AddressService` and the authoritative Shipping Service geography dataset. Province/city choices may be rendered server-side or loaded through a small JSON/AJAX endpoint for dependent selection; never create a parallel geography dataset or unrestricted location values.
+
+Blade Checkout must call backend services directly and submit semantic choices only. Never trust hidden fields for authoritative prices, taxes, discounts, shipping calculations, package, origin, or inventory; the server must recalculate at submission.
+
+### Payment
+
+No real payment provider has been selected. Keep Payment architecture provider-neutral and do not add a provider until explicitly requested. The provider boundary may later cover initiation, redirect/client instruction, payment state, and server-side verification; the authoritative amount always comes from the Order.
+
+### Implementation Order
+
+Unless the user changes priorities, future storefront work should proceed as Blade SSR integration:
+
+1. Blade storefront foundation, layouts, and assets
+2. Home page
+3. Product listing/search/filter
+4. Product detail and Variable Product selection
+5. Authentication/account template integration
+6. Cart
+7. Address book and geography
+8. Coupon and Shipping quote UX
+9. Checkout
+10. Payment UX after a provider decision
+11. Orders and Shipment tracking
+12. Blog
+13. Full storefront runtime/browser QA
+
+Backend HTTP API phases are not prerequisites for every Blade page. Add API endpoints only when another consumer needs them, AJAX materially benefits UX, or the user explicitly requests an API contract.
+
+### Storefront Contract Testing
+
+Blade implementation requires Laravel Feature tests for routes, SSR responses, authentication, validation, ownership/IDOR, form submissions, and server-authoritative calculations. Add browser-level tests selectively where JavaScript-heavy behavior cannot be proven by normal Laravel tests; do not call component tests browser E2E without a real browser runner.
+
+For any new customer HTTP contract, add runtime tests for applicable success, validation, authentication, ownership/IDOR, pagination, stable enum values, integer Rial serialization, machine-readable dates, error mapping, cross-user access, and replay/idempotency behavior for mutations. Public monetary values must serialize as integer Rial, never authoritative floats. Public timestamps should use consistent machine-readable ISO-8601 values, and public status/type values must use stable machine enum values rather than Persian admin labels.
+
+### Existing Backend Verification Boundary
+
+The following areas have already been verified within their stated scopes and should be reused rather than casually re-audited during ordinary storefront work: core commerce services, MySQL concurrency invariants, Coupon concurrency, Payment concurrency, Checkout idempotency, cancellation/payment race, Shipment concurrency, Notification intent concurrency, Filament Admin Runtime QA, Product media authorization, Product deletion lifecycle, Variable Product generation UI, catalog/admin CRUD, Post admin lifecycle, the Phase 1 Product Catalog API, and the Phase 2A JSON customer authentication boundary.
+
+This context does not authorize implementing storefront pages or missing APIs automatically. Do not add frontend code, customer endpoints, or real providers unless the user explicitly requests that implementation task.
 
 ---
 

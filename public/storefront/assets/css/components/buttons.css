@@ -1,0 +1,1 @@
+.icon-button{display:inline-grid;place-items:center;min-width:44px;min-height:44px;border:1px solid transparent;background:transparent;border-radius:50%;color:var(--ink);transition:background .2s,color .2s}.icon-button:hover{background:var(--pink-soft);color:var(--pink)}.arrow-button{background:#fff;border:1px solid var(--line);box-shadow:var(--shadow)}

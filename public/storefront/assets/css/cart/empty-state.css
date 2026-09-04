@@ -1,0 +1,2 @@
+.cart-empty[hidden]{display:none}.cart-page.has-items .cart-empty{display:none}
+.cart-page:not(.has-items) .cart-items-panel{display:none}

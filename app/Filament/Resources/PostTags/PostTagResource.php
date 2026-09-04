@@ -15,6 +15,7 @@ use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
+use Illuminate\Validation\Rule;
 use UnitEnum;
 
 class PostTagResource extends Resource
@@ -37,7 +38,8 @@ class PostTagResource extends Resource
     {
         return $schema->components([
             TextInput::make('name')->label('نام')->required()->maxLength(255),
-            TextInput::make('slug')->label('نامک')->maxLength(255),
+            TextInput::make('slug')->label('نامک')->maxLength(255)
+                ->rule(fn (?PostTag $record) => Rule::unique('post_tags', 'slug')->ignore($record?->getKey())),
         ]);
     }
 

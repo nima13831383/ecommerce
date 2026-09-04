@@ -8,6 +8,7 @@ use App\Models\Attribute;
 use App\Models\AttributeValue;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\ProductImage;
 use App\Models\Tag;
 use App\Models\TaxClass;
 use Filament\Actions\Action;
@@ -731,7 +732,7 @@ class ProductForm
                         FileUpload::make('path')
                             ->label('Image')
                             ->image()
-                            ->disk('public')
+                            ->disk(ProductImage::storageDisk())
                             ->directory('products')
                             ->imageEditor()
                             ->required()

@@ -33,7 +33,7 @@ class PostForm
                 Select::make('postTags')->label('برچسب‌ها')->relationship('postTags', 'name')->multiple()->searchable()->preload(false),
             ])->columns(2),
             Section::make('رسانه')->schema([
-                FileUpload::make('featured_image')->label('تصویر شاخص')->image()->disk('public')->directory('blog'),
+                FileUpload::make('featured_image')->label('تصویر شاخص')->image()->disk(config('media.public_disk', 'public'))->directory('blog'),
             ]),
             Section::make('سئو')->schema([
                 TextInput::make('seo_meta.meta_title')->label('عنوان سئو')->maxLength(255),

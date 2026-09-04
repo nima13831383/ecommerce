@@ -1,0 +1,66 @@
+/* 404 body only. Mobile-first geometry follows the supplied reference assets. */
+.not-found-page{padding-block:18px 45px;overflow:hidden}
+.not-found-hero{min-height:clamp(590px,150vw,690px);display:flex;align-items:flex-start;justify-content:center;padding:38px 16px 30px;overflow:hidden;border-radius:20px;background:#fff0f2 url('../../../back-404-mobile.png') center/cover no-repeat}
+.not-found-hero__content{width:min(100%,360px);text-align:center;color:var(--ink)}
+.not-found-hero__number{margin:0;color:#e8758d;font-size:clamp(5rem,20vw,6.5rem);font-weight:400;line-height:.92;letter-spacing:3px}
+.not-found-hero h1{margin:16px 0 9px;font-size:clamp(1.3rem,5vw,1.65rem);line-height:1.55}
+.not-found-hero p:not(.not-found-hero__number){margin:0;color:#766b6b;font-size:.78rem;line-height:2.05}
+.not-found-hero__actions{display:flex;flex-direction:column;align-items:stretch;gap:9px;margin-top:22px}
+.not-found-page .public-button{min-height:46px;padding-inline:22px;border:1px solid var(--pink);border-radius:999px;display:inline-flex;align-items:center;justify-content:center;gap:8px;background:var(--pink);color:#fff;font-size:.76rem}
+.not-found-page .public-button--secondary{background:rgba(255,255,255,.92);color:var(--ink)}
+.not-found-page .public-button .icon{width:18px;height:18px}
+.recovery-card{display:grid;grid-template-columns:1fr;gap:18px;align-items:center;margin-top:14px;padding:22px 18px;border:1px solid #f2ccd3;border-radius:18px;background:#fff}
+.recovery-card__copy{text-align:center}
+.recovery-card h2{margin:0 0 7px;font-size:1rem;line-height:1.7}
+.recovery-card p{margin:0;color:var(--muted);font-size:.72rem;line-height:1.9}
+.recovery-form{display:flex;align-items:center;gap:7px;min-height:48px;padding:5px 7px;border:1px solid #f2d8dc;border-radius:999px;background:#fffafa}
+.recovery-form input{min-width:0;flex:1;border:0;outline:0;background:transparent;padding-inline:8px;color:var(--ink);font:inherit;font-size:.72rem;text-align:right}
+.recovery-form input::placeholder{color:#b6adaa}
+.recovery-form .icon{flex:0 0 auto;width:20px;height:20px;color:var(--pink)}
+.recovery-form button{flex:0 0 auto;min-height:38px;padding-inline:15px;border:0;border-radius:999px;background:var(--pink);color:#fff;font:inherit;font-size:.68rem;cursor:pointer}
+.not-found-section{padding-block:24px 0}
+.not-found-trust{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:22px;padding:14px;border-radius:18px;background:#fcfaf9}
+.not-found-trust .feature{min-width:0;justify-content:flex-start;gap:8px;padding:10px 5px}
+.not-found-trust .feature:nth-child(odd){border-inline-end:1px solid #f0e7e5}
+.not-found-trust .feature:nth-child(-n+2){border-bottom:1px solid #f0e7e5}
+.not-found-trust .feature .icon{flex:0 0 auto;width:25px;height:25px;color:var(--pink)}
+.not-found-trust .feature strong{font-size:.66rem;line-height:1.7}
+.not-found-trust .feature span{font-size:.54rem;line-height:1.7}
+.not-found-newsletter{min-height:250px;margin-top:18px;padding:28px 18px;background-color:#fff0f0;background-image:url('../../../news-back-mobile.png');background-position:center;background-size:cover;background-repeat:no-repeat}
+.not-found-newsletter .newsletter-copy{text-align:center}
+.not-found-newsletter .newsletter-copy h2{font-size:1rem;line-height:1.7}
+.not-found-newsletter .newsletter-copy p{font-size:.7rem;line-height:1.9}
+.not-found-newsletter .newsletter-form{margin-top:16px}
+@media(min-width:521px) and (max-width:900px){
+  .not-found-hero{min-height:clamp(600px,76vw,690px)}
+  .not-found-hero__content{max-width:390px}
+  .not-found-page .public-button{width:250px;align-self:center}
+  .recovery-card{padding-inline:28px}
+}
+@media(min-width:901px){
+  .not-found-page{padding-block:28px 64px}
+  .not-found-hero{min-height:clamp(405px,31vw,445px);align-items:center;justify-content:flex-start;padding:42px 8%;border-radius:24px;background-image:url('../../../back-404.png');background-position:center;background-size:cover}
+  .not-found-hero__content{width:min(42%,520px);max-width:520px}
+  .not-found-hero__number{font-size:clamp(5.5rem,8vw,7.5rem)}
+  .not-found-hero h1{margin-top:15px;font-size:clamp(1.55rem,2.3vw,2.1rem)}
+  .not-found-hero p:not(.not-found-hero__number){font-size:.86rem}
+  .not-found-hero__actions{align-items:center;gap:10px;margin-top:22px}
+  .not-found-page .public-button{width:220px}
+  .recovery-card{direction:ltr;grid-template-columns:1.08fr 1fr;gap:38px;margin-top:18px;padding:28px 36px;border-radius:22px}
+  .recovery-card__copy{grid-column:2;text-align:right}
+  .recovery-form{grid-column:1;grid-row:1;direction:rtl}
+  .not-found-section{padding-top:30px}
+  .not-found-trust{grid-template-columns:repeat(4,1fr);gap:12px;margin-top:28px;padding:12px 28px;border-radius:14px}
+  .not-found-trust .feature{justify-content:center;padding:0;border:0!important}
+  .not-found-trust .feature .icon{width:28px;height:28px}
+  .not-found-trust .feature strong{font-size:.78rem}
+  .not-found-trust .feature span{font-size:.63rem}
+  .not-found-newsletter{min-height:150px;margin-top:18px;padding:30px 7%;background-image:url('../../../news-back.png');background-position:center;background-size:cover}
+  .not-found-newsletter .newsletter-copy{text-align:right}
+}
+@media(max-width:370px){
+  .not-found-hero{padding-inline:13px}
+  .not-found-hero__number{font-size:5rem}
+  .not-found-hero h1{font-size:1.25rem}
+  .recovery-form button{padding-inline:12px}
+}

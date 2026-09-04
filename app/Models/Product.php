@@ -2,18 +2,48 @@
 
 namespace App\Models;
 
+use App\Enums\InventoryReservationStatus;
 use App\Services\Settings\SettingsService;
 use App\Services\Tax\TaxCalculator;
+use DomainException;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 
 // app/Models/Product.php
 class Product extends Model
 {
     use SoftDeletes;
+
+    protected static function booted(): void
+    {
+        static::deleting(function (self $product): void {
+            if (! $product->isForceDeleting()) {
+                return;
+            }
+
+            $variationIds = $product->variations()->pluck('id');
+            $owners = [
+                [self::class, $product->getKey()],
+                ...$variationIds->map(fn (int $id): array => [ProductVariation::class, $id]),
+            ];
+
+            $hasActiveReservation = collect($owners)->contains(fn (array $owner): bool => InventoryReservation::query()
+                ->where('inventory_owner_type', $owner[0])
+                ->where('inventory_owner_id', $owner[1])
+                ->where('status', InventoryReservationStatus::Active)
+                ->exists());
+
+            if ($hasActiveReservation) {
+                throw new DomainException('Products with active inventory reservations cannot be permanently deleted.');
+            }
+
+            $product->images()->each(fn (ProductImage $image) => Storage::disk(ProductImage::storageDisk())->delete($image->path));
+        });
+    }
 
     protected $fillable = [
         'brand_id',

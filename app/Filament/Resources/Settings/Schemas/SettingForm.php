@@ -26,17 +26,34 @@ class SettingForm
                 ->required(fn (Get $get): bool => $get('key') === 'shipping.mode'),
             Select::make('value_number')
                 ->label('کلاس مالیاتی پیش‌فرض')
-                ->visible(fn (Get $get): bool => in_array($get('key'), ['default_tax_class_id', 'shipping.origin_province_id', 'shipping.origin_city_id', 'shipping.fixed_rate_amount'], true))
+                ->visible(fn (Get $get): bool => $get('key') === 'default_tax_class_id')
                 ->options(fn (Get $get): array => match ($get('key')) {
                     'default_tax_class_id' => TaxClass::query()->where('is_active', true)->orderBy('name')->pluck('name', 'id')->all(),
-                    'shipping.origin_province_id' => app(WordpressShippingDataLoader::class)->provinces(),
-                    'shipping.origin_city_id' => app(WordpressShippingDataLoader::class)->cities((int) app(SettingsService::class)->get('shipping.origin_province_id', 0)),
                     default => [],
                 })
                 ->searchable()
                 ->nullable()
                 ->helperText('این مقدار برای محصولاتی استفاده می‌شود که کلاس مالیاتی جداگانه ندارند.')
                 ->required(false),
+            Select::make('value_number')
+                ->label('استان مبدأ ارسال')
+                ->visible(fn (Get $get): bool => $get('key') === 'shipping.origin_province_id')
+                ->options(fn (): array => app(WordpressShippingDataLoader::class)->provinces())
+                ->searchable()
+                ->nullable(),
+            Select::make('value_number')
+                ->label('شهر مبدأ ارسال')
+                ->visible(fn (Get $get): bool => $get('key') === 'shipping.origin_city_id')
+                ->options(fn (): array => app(WordpressShippingDataLoader::class)->cities((int) app(SettingsService::class)->get('shipping.origin_province_id', 0)))
+                ->searchable()
+                ->nullable(),
+            TextInput::make('value_number')
+                ->label('هزینه ثابت ارسال (ریال)')
+                ->visible(fn (Get $get): bool => $get('key') === 'shipping.fixed_rate_amount')
+                ->numeric()
+                ->integer()
+                ->minValue(0)
+                ->nullable(),
             Textarea::make('value_json')
                 ->label('بسته‌بندی‌ها / کارتن‌ها (JSON)')
                 ->visible(fn (Get $get): bool => $get('key') === 'shipping.packages')

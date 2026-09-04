@@ -87,6 +87,7 @@ test('the order detail is independent from current product records', function ()
     $product = $item->product;
 
     $product->update(['name' => 'نام فعلی متفاوت', 'sku' => 'CURRENT-SKU']);
+    app(OrderService::class)->transitionStatus($order, OrderStatus::Cancelled);
     $product->forceDelete();
 
     $admin = orderAdminUser(['orders.viewAny', 'orders.view']);

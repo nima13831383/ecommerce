@@ -15,7 +15,7 @@ class InventoryReservation extends Model
 
     public function inventoryOwner(): MorphTo
     {
-        return $this->morphTo();
+        return $this->morphTo()->withTrashed();
     }
 
     public function orderItem(): BelongsTo

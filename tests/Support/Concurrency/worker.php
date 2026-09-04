@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CustomerNotificationType;
 use App\Enums\OrderStatus;
 use App\Models\Cart;
 use App\Models\Coupon;
@@ -11,7 +12,9 @@ use App\Models\User;
 use App\Services\Checkout\CheckoutInput;
 use App\Services\Checkout\CheckoutService;
 use App\Services\CouponService;
+use App\Services\Fulfillment\ShipmentService;
 use App\Services\Inventory\InventoryService;
+use App\Services\Notifications\CustomerNotificationService;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayRegistry;
 use App\Services\Payments\PaymentService;
@@ -37,6 +40,8 @@ $cancelOrder = null;
 $coupon = null;
 $couponCart = null;
 $couponOrder = null;
+$shipmentOrder = null;
+$notificationOrder = null;
 if (($payload['operation'] ?? null) === 'checkout') {
     $checkoutData = $payload['data'];
     $checkoutUser = User::query()->findOrFail((int) $checkoutData['user_id']);
@@ -61,6 +66,12 @@ if (($payload['operation'] ?? null) === 'coupon_redeem') {
     $coupon = Coupon::query()->findOrFail((int) $couponData['coupon_id']);
     $couponCart = Cart::query()->findOrFail((int) $couponData['cart_id']);
     $couponOrder = Order::query()->findOrFail((int) $couponData['order_id']);
+}
+if (($payload['operation'] ?? null) === 'shipment_ensure') {
+    $shipmentOrder = Order::query()->findOrFail((int) $payload['data']['order_id']);
+}
+if (($payload['operation'] ?? null) === 'notification_intent') {
+    $notificationOrder = Order::query()->findOrFail((int) $payload['data']['order_id']);
 }
 file_put_contents("{$barrier}/{$worker}.ready", (string) getmypid());
 $deadline = microtime(true) + 10;
@@ -124,6 +135,35 @@ try {
                 'order_id' => $usage->order_id,
                 'user_id' => $usage->user_id,
                 'discount_amount' => (int) $discountAmount,
+            ];
+        })(),
+        'shipment_ensure' => (static function () use ($shipmentOrder): array {
+            $shipment = app(ShipmentService::class)->ensure($shipmentOrder);
+
+            return [
+                'shipment_id' => $shipment->id,
+                'shipment_status' => $shipment->status->value,
+            ];
+        })(),
+        'notification_intent' => (static function () use ($notificationOrder): array {
+            $notification = app(CustomerNotificationService::class)->forOrder(
+                $notificationOrder,
+                CustomerNotificationType::OrderPlaced,
+                [
+                    'order_number' => $notificationOrder->order_number,
+                    'order_id' => $notificationOrder->id,
+                    'amount' => $notificationOrder->grand_total,
+                    'created_at' => $notificationOrder->created_at?->toIso8601String(),
+                ],
+                "order:{$notificationOrder->id}:placed",
+            );
+
+            return [
+                'notification_id' => $notification->id,
+                'notification_type' => $notification->type->value,
+                'notification_status' => $notification->status->value,
+                'attempts' => $notification->attempts,
+                'idempotency_key' => $notification->idempotency_key,
             ];
         })(),
         default => throw new InvalidArgumentException('Unknown worker operation.'),

@@ -1,0 +1,3 @@
+@media(max-width:900px){.result-layout{display:block}.result-summary{position:static;margin-top:18px}.result-heading h1{font-size:1.4rem}}
+@media(max-width:520px){.payment-result-page{padding-block:18px 42px}.result-breadcrumb{margin-bottom:18px;white-space:nowrap;font-size:.65rem}.result-heading{margin-bottom:18px}.status-card{padding:24px 15px}.status-icon{width:56px;height:56px}.status-card h2{font-size:1.05rem}.status-actions{flex-direction:column;gap:8px}.result-button{width:100%}.result-card__heading{padding-inline:16px}.order-details dl{padding-inline:16px}.progress-card ol{padding-inline:12px;gap:3px}.result-summary__inner{padding:17px}}
+@media(prefers-reduced-motion:reduce){.status-card{animation:none}}
