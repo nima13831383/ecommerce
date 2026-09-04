@@ -2,12 +2,13 @@
 
 namespace App\Filament\Resources\Coupons;
 
+use App\Filament\Forms\Components\JalaliDateTimePicker;
 use App\Models\Coupon;
+use App\Support\JalaliDate;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
-use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -112,8 +113,8 @@ class CouponResource extends Resource
             ]),
 
             Section::make('بازه اعتبار')->columns(2)->schema([
-                DateTimePicker::make('starts_at')->label('شروع')->seconds(false),
-                DateTimePicker::make('expires_at')->label('پایان')->seconds(false)
+                JalaliDateTimePicker::make('starts_at')->label('شروع')->seconds(false),
+                JalaliDateTimePicker::make('expires_at')->label('پایان')->seconds(false)
                     ->after('starts_at'),
             ]),
         ]);
@@ -161,7 +162,7 @@ class CouponResource extends Resource
                 IconColumn::make('is_active')->label('فعال')->boolean(),
 
                 TextColumn::make('expires_at')->label('انقضا')
-                    ->dateTime('Y/m/d H:i')->sortable()->toggleable(),
+                    ->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->sortable()->toggleable(),
             ])
             ->filters([
                 TernaryFilter::make('is_active')->label('وضعیت فعال بودن'),

@@ -2,11 +2,14 @@
 
 namespace App\Filament\Resources\Brands\Tables;
 
+use App\Support\JalaliDate;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Actions\ForceDeleteAction;
 use Filament\Actions\ForceDeleteBulkAction;
+use Filament\Actions\RestoreAction;
 use Filament\Actions\RestoreBulkAction;
 use Filament\Tables\Columns\ImageColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -14,8 +17,7 @@ use Filament\Tables\Columns\ToggleColumn;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Filters\TrashedFilter;
 use Filament\Tables\Table;
-use Filament\Actions\ForceDeleteAction;
-use Filament\Actions\RestoreAction;
+
 class BrandsTable
 {
     public static function configure(Table $table): Table
@@ -41,7 +43,7 @@ class BrandsTable
 
                 TextColumn::make('sort_order')->label('ترتیب')->sortable(),
 
-                TextColumn::make('created_at')->label('ایجاد')->dateTime()->sortable()
+                TextColumn::make('created_at')->label('ایجاد')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([

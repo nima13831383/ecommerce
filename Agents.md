@@ -891,6 +891,28 @@ The following areas have already been verified within their stated scopes and sh
 
 This context does not authorize implementing storefront pages or missing APIs automatically. Do not add frontend code, customer endpoints, or real providers unless the user explicitly requests that implementation task.
 
+## Site Settings Architecture
+
+Site settings are a structured, registry-backed application contract. `SettingRegistry` is the central source of truth for each setting's key, group, type, default, nullability, validation rules, options, description, and core/persistence status. Setting keys are application structure, not arbitrary operator-created data.
+
+Every registered core setting must have a persisted row in `settings`. Fresh-install migrations and additive upgrade migrations must create missing core rows only; they must never overwrite an existing value. The `(group, key)` uniqueness constraint remains authoritative. Existing rows, including unknown legacy rows, must be preserved for inspection and compatibility.
+
+Adding a new core setting requires all of the following in one coherent change:
+
+1. register its complete definition in `SettingRegistry`
+2. add/update an additive migration that inserts the row only when missing
+3. expose value editing in the existing Site Settings Filament UI without allowing key/group/type creation or deletion
+4. read and write it through `SettingsService`
+5. add isolated tests for defaults, typing, validation, preservation, and migration/synchronization behavior
+
+Application code must not scatter direct `Setting` queries or ad-hoc key literals for business configuration; use `SettingsService` and the registry. Unknown setting updates must fail clearly. The `settings:sync` and `settings:status` commands are safe, idempotent operational tools: sync adds missing core rows only (and supports `--dry-run`), while status reports registered/persisted/missing/unknown/incomplete configuration without printing secrets.
+
+Filament Site Settings edits values only. Core keys, groups, and types are read-only metadata; there are no arbitrary create/delete paths. Required configuration gaps must be visible as incomplete/needs-configuration state. Shipping validation remains mode-aware: calculator mode requires the configured single global origin and valid packages, fixed mode uses a non-negative integer Rial amount, and free mode does not require calculator inputs. Do not duplicate shipping or other domain logic in Filament.
+
+Never store environment secrets or credentials in the settings table. Do not bake a temporary development shipping origin/package into universal defaults. Site-specific development values must be configured explicitly and production values confirmed separately. Settings defaults must remain safe and neutral.
+
+Do not manually insert operator settings rows as a permanent workflow. Use the registry migration or `settings:sync`; migrations are additive and non-destructive. Isolated fresh test databases must finish migrations with all registered core rows present. The normal development database `ecommerce` must never be reset or destructively reconstructed to test settings.
+
 ---
 
 # Blog

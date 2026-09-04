@@ -16,6 +16,8 @@ use App\Services\Payments\PaymentGatewayRegistry;
 use App\Services\Payments\ZarinPalPaymentGateway;
 use App\Services\Payments\ZarinPalSdkClient;
 use App\Services\Storefront\StorefrontCartContext;
+use App\Support\DatabaseSafetyGuard;
+use Illuminate\Console\Events\CommandStarting;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\View;
@@ -59,6 +61,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Event::listen(CommandStarting::class, function (CommandStarting $event): void {
+            DatabaseSafetyGuard::assertNoDestructiveArtisanCommand((string) $event->command);
+        });
+
         View::composer('storefront.*', function ($view): void {
             $context = app(StorefrontCartContext::class);
             $view->with('storefrontCart', $context->present($context->current()));

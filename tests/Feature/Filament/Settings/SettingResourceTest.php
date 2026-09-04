@@ -24,12 +24,10 @@ function settingsAdmin(array $permissions): User
 test('settings are read/update protected and have no arbitrary create or delete paths', function (): void {
     $viewer = settingsAdmin(['settings.view']);
     $editor = settingsAdmin(['settings.view', 'settings.update']);
-    $setting = Setting::query()->create([
-        'group' => 'tax',
-        'key' => 'default_tax_class_id',
-        'type' => 'integer',
-        'value' => null,
-    ]);
+    $setting = Setting::query()->updateOrCreate(
+        ['group' => 'tax', 'key' => 'default_tax_class_id'],
+        ['type' => 'integer', 'value' => null],
+    );
 
     $this->actingAs(User::factory()->create())->get('/admin/settings')->assertForbidden();
     $this->actingAs($viewer)->get('/admin/settings')->assertOk();
@@ -51,12 +49,10 @@ test('the real Filament edit path updates a known typed setting through Settings
         'value' => '9.000',
         'is_active' => true,
     ]);
-    $setting = Setting::query()->create([
-        'group' => 'tax',
-        'key' => 'default_tax_class_id',
-        'type' => 'integer',
-        'value' => null,
-    ]);
+    $setting = Setting::query()->updateOrCreate(
+        ['group' => 'tax', 'key' => 'default_tax_class_id'],
+        ['type' => 'integer', 'value' => null],
+    );
 
     Livewire::actingAs($editor, 'web')
         ->test(EditSetting::class, ['record' => $setting->getRouteKey()])

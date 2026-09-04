@@ -8,6 +8,7 @@ use App\Filament\Resources\Payments\PaymentResource;
 use App\Filament\Resources\Payments\Support\PaymentPresentation;
 use App\Models\Order;
 use App\Models\User;
+use App\Support\JalaliDate;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -26,8 +27,8 @@ class UserInfolist
                 TextEntry::make('status')->label('وضعیت حساب')->badge()->formatStateUsing(fn (mixed $state): string => self::statusLabel($state))->color(fn (mixed $state): string => self::statusColor($state)),
                 TextEntry::make('email_verified_at')->label('تأیید ایمیل')->state(fn (User $record): string => $record->email_verified_at ? 'تأیید شده' : 'تأیید نشده')->badge()->color(fn (User $record): string => $record->email_verified_at ? 'success' : 'warning'),
                 TextEntry::make('mobile_verified_at')->label('تأیید شماره تماس')->state(fn (User $record): string => $record->mobile_verified_at ? 'تأیید شده' : 'تأیید نشده')->badge()->color(fn (User $record): string => $record->mobile_verified_at ? 'success' : 'gray'),
-                TextEntry::make('created_at')->label('تاریخ عضویت')->dateTime(),
-                TextEntry::make('deleted_at')->label('تاریخ حذف')->dateTime()->placeholder('حذف نشده'),
+                TextEntry::make('created_at')->label('تاریخ عضویت')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
+                TextEntry::make('deleted_at')->label('تاریخ حذف')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('حذف نشده'),
             ]),
             Section::make('نقش‌ها و دسترسی کلی')->schema([
                 TextEntry::make('roles')->label('نقش‌ها')->state(fn (User $record): string => $record->roles->pluck('name')->map(fn (string $role): string => self::roleLabel($role))->implode('، ') ?: 'بدون نقش')->badge(),
@@ -52,7 +53,7 @@ class UserInfolist
                         TextEntry::make('status')->label('وضعیت')->badge()->formatStateUsing(fn (mixed $state): string => OrderPresentation::orderStatus($state))->color(fn (mixed $state): string => OrderPresentation::orderStatusColor($state)),
                         TextEntry::make('payment_status')->label('وضعیت پرداخت')->badge()->formatStateUsing(fn (mixed $state): string => OrderPresentation::paymentStatus($state))->color(fn (mixed $state): string => OrderPresentation::paymentStatusColor($state)),
                         TextEntry::make('grand_total')->label('مبلغ نهایی')->formatStateUsing(fn (mixed $state): string => OrderPresentation::money($state)),
-                        TextEntry::make('created_at')->label('تاریخ ثبت')->dateTime(),
+                        TextEntry::make('created_at')->label('تاریخ ثبت')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
                     ]),
             ]),
             Section::make('پرداخت‌های اخیر')->schema([
@@ -71,7 +72,7 @@ class UserInfolist
                         TextEntry::make('amount')->label('مبلغ')->formatStateUsing(fn (mixed $state, mixed $record): string => PaymentPresentation::money($state, is_array($record) ? $record['currency'] : null)),
                         TextEntry::make('status')->label('وضعیت')->badge()->formatStateUsing(fn (mixed $state): string => PaymentPresentation::status($state))->color(fn (mixed $state): string => PaymentPresentation::statusColor($state)),
                         TextEntry::make('reconciliation_required')->label('تطبیق')->badge()->formatStateUsing(fn (mixed $state): string => $state ? 'نیازمند بررسی' : 'موردی نیست')->color(fn (mixed $state): string => $state ? 'danger' : 'gray'),
-                        TextEntry::make('created_at')->label('تاریخ')->dateTime(),
+                        TextEntry::make('created_at')->label('تاریخ')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
                     ]),
             ])->collapsible()->collapsed(),
         ]);

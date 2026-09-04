@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Settings;
 
 use App\Filament\Resources\Settings\Schemas\SettingForm;
 use App\Models\Setting;
+use App\Support\JalaliDate;
 use BackedEnum;
 use Filament\Actions\EditAction;
 use Filament\Resources\Resource;
@@ -37,6 +38,16 @@ class SettingResource extends Resource
         return SettingForm::configure($schema);
     }
 
+    public static function canCreate(): bool
+    {
+        return false;
+    }
+
+    public static function canDelete($record = null): bool
+    {
+        return false;
+    }
+
     public static function table(Table $table): Table
     {
         return $table
@@ -60,7 +71,7 @@ class SettingResource extends Resource
                         'money' => 'مبلغ ریالی',
                         default => 'متن',
                     }),
-                TextColumn::make('updated_at')->label('آخرین تغییر')->dateTime('Y/m/d H:i')->sortable(),
+                TextColumn::make('updated_at')->label('آخرین تغییر')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->sortable(),
             ])
             ->filters([
                 SelectFilter::make('group')

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Coupons\RelationManagers;
 
+use App\Support\JalaliDate;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Table;
@@ -20,7 +21,7 @@ class UsagesRelationManager extends RelationManager
             TextColumn::make('user.mobile')->label('موبایل'),
             TextColumn::make('order.order_number')->label('شماره سفارش'),
             TextColumn::make('discount_amount')->label('مبلغ تخفیف')->numeric(),
-            TextColumn::make('created_at')->label('زمان مصرف')->dateTime()->sortable(),
+            TextColumn::make('created_at')->label('زمان مصرف')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->sortable(),
         ])->defaultSort('created_at', 'desc');
     }
 }

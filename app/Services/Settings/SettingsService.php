@@ -28,7 +28,11 @@ class SettingsService
             ->where('group', $group ?? $definition->group)
             ->first();
 
-        return $setting?->typed_value ?? ($default ?? $definition->default);
+        if ($setting !== null) {
+            return $setting->typed_value;
+        }
+
+        return $default ?? $definition->default;
     }
 
     public function getDefinition(string $key): SettingDefinition
@@ -40,9 +44,10 @@ class SettingsService
     {
         $definition = SettingRegistry::get($key);
         $normalized = $this->normalize($definition, $value);
+        $previousMode = $key === 'shipping.mode' ? $this->get('shipping.mode') : null;
 
-        $setting = DB::transaction(function () use ($definition, $normalized): Setting {
-            return Setting::query()->updateOrCreate(
+        $setting = DB::transaction(function () use ($definition, $normalized, $previousMode): Setting {
+            $setting = Setting::query()->updateOrCreate(
                 ['group' => $definition->group, 'key' => $definition->key],
                 [
                     'value' => $normalized,
@@ -50,6 +55,12 @@ class SettingsService
                     'is_public' => false,
                 ],
             );
+
+            if ($definition->key === 'shipping.mode' && $normalized === 'calculator' && $previousMode !== 'calculator') {
+                $this->assertCalculatorConfiguration();
+            }
+
+            return $setting;
         });
 
         Log::info('settings.updated', [
@@ -59,6 +70,95 @@ class SettingsService
         ]);
 
         return $setting;
+    }
+
+    /**
+     * Ensure every registered core key has a row without changing existing values.
+     *
+     * @return array{added: array<int, string>, existing: array<int, string>}
+     */
+    public function sync(bool $dryRun = false): array
+    {
+        $added = [];
+        $existing = [];
+        $now = now();
+
+        foreach (SettingRegistry::coreDefinitions() as $definition) {
+            $query = Setting::query()
+                ->where('group', $definition->group)
+                ->where('key', $definition->key);
+
+            if ($query->exists()) {
+                $existing[] = $definition->key;
+
+                continue;
+            }
+
+            $added[] = $definition->key;
+
+            if (! $dryRun) {
+                Setting::query()->insertOrIgnore([
+                    'group' => $definition->group,
+                    'key' => $definition->key,
+                    'value' => $this->serializeValue($definition->default),
+                    'type' => $definition->type,
+                    'is_public' => false,
+                    'created_at' => $now,
+                    'updated_at' => $now,
+                ]);
+            }
+        }
+
+        return ['added' => $added, 'existing' => $existing];
+    }
+
+    /**
+     * @return array{registered: int, persisted: int, missing: array<int, string>, unknown: array<int, array{group: string, key: string}>, needs_configuration: array<int, string>}
+     */
+    public function status(): array
+    {
+        $definitions = SettingRegistry::coreDefinitions();
+        $rows = Setting::query()->get(['group', 'key']);
+        $persistedKeys = [];
+
+        foreach ($rows as $row) {
+            $persistedKeys[$row->group.':'.$row->key] = true;
+        }
+
+        $missing = [];
+        foreach ($definitions as $definition) {
+            if (! isset($persistedKeys[$definition->group.':'.$definition->key])) {
+                $missing[] = $definition->key;
+            }
+        }
+
+        $unknown = $rows
+            ->reject(fn (Setting $row): bool => SettingRegistry::has($row->key)
+                && SettingRegistry::get($row->key)->group === $row->group)
+            ->map(fn (Setting $row): array => ['group' => $row->group, 'key' => $row->key])
+            ->values()
+            ->all();
+
+        $needsConfiguration = [];
+        if ($this->get('shipping.mode') === 'calculator') {
+            if ($this->get('shipping.origin_province_id') === null) {
+                $needsConfiguration[] = 'shipping.origin_province_id';
+            }
+            if ($this->get('shipping.origin_city_id') === null) {
+                $needsConfiguration[] = 'shipping.origin_city_id';
+            }
+            if ($this->get('shipping.packages') === []) {
+                $needsConfiguration[] = 'shipping.packages';
+            }
+        }
+
+        return [
+            'registered' => count($definitions),
+            'persisted' => count(array_filter($definitions, fn (SettingDefinition $definition): bool => isset($persistedKeys[$definition->group.':'.$definition->key]))),
+            'missing' => $missing,
+            'unknown' => $unknown,
+            'needs_configuration' => $needsConfiguration,
+        ];
     }
 
     public function canManage(Setting $setting): bool
@@ -84,6 +184,29 @@ class SettingsService
         $this->assertShippingSetting($definition->key, $normalized);
 
         return $normalized;
+    }
+
+    private function assertCalculatorConfiguration(): void
+    {
+        $province = $this->get('shipping.origin_province_id');
+        $city = $this->get('shipping.origin_city_id');
+        $packages = $this->get('shipping.packages', []);
+
+        if ($province === null || $city === null || $packages === []) {
+            throw ValidationException::withMessages([
+                'value' => 'برای حالت محاسبه‌گر، استان، شهر و حداقل یک بسته‌بندی باید تنظیم شود.',
+            ]);
+        }
+    }
+
+    private function serializeValue(mixed $value): ?string
+    {
+        return match (true) {
+            $value === null => null,
+            is_array($value) => json_encode($value, JSON_UNESCAPED_UNICODE),
+            is_bool($value) => $value ? '1' : '0',
+            default => (string) $value,
+        };
     }
 
     private function assertShippingSetting(string $key, mixed $value): void

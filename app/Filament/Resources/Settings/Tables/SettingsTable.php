@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Settings\Tables;
 
+use App\Support\JalaliDate;
 use Filament\Actions\EditAction;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -22,11 +23,11 @@ class SettingsTable
                 IconColumn::make('is_public')
                     ->boolean(),
                 TextColumn::make('created_at')
-                    ->dateTime()
+                    ->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('updated_at')
-                    ->dateTime()
+                    ->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])

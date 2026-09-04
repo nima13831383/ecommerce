@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers\Storefront;
 
+use App\Exceptions\AddressValidationException;
 use App\Exceptions\CheckoutValidationException;
+use App\Exceptions\ShippingConfigurationException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Storefront\CheckoutRequest;
 use App\Models\Cart;
@@ -63,8 +65,12 @@ class CheckoutController extends Controller
                     $paymentType,
                     $idempotencyKey,
                 ));
+            } catch (ShippingConfigurationException) {
+                $previewError = 'محاسبه هزینه ارسال در حال حاضر امکان‌پذیر نیست.';
+            } catch (AddressValidationException) {
+                $previewError = 'لطفاً آدرس ارسال را انتخاب کنید.';
             } catch (CheckoutValidationException|DomainException) {
-                $previewError = 'اطلاعات ارسال یا سبد خرید برای ثبت سفارش کامل نیست.';
+                $previewError = 'اطلاعات ارسال کامل نیست. لطفاً روش ارسال را دوباره انتخاب کنید.';
             }
         }
 
@@ -109,6 +115,14 @@ class CheckoutController extends Controller
                 ),
                 $request->user()->id,
             );
+        } catch (ShippingConfigurationException) {
+            return back()->withInput()->withErrors([
+                'checkout' => 'محاسبه هزینه ارسال در حال حاضر امکان‌پذیر نیست.',
+            ]);
+        } catch (AddressValidationException) {
+            return back()->withInput()->withErrors([
+                'checkout' => 'لطفاً آدرس ارسال را انتخاب کنید.',
+            ]);
         } catch (CheckoutValidationException|DomainException) {
             return back()->withInput()->withErrors([
                 'checkout' => 'ثبت سفارش انجام نشد؛ اطلاعات سبد خرید، آدرس و روش ارسال را بررسی کنید.',

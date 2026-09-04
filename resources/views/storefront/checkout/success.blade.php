@@ -19,7 +19,7 @@
                     <button class="pill-button" type="submit">ادامه به پرداخت</button>
                 </form>
             @else
-                <p>درگاه پرداخت هنوز تنظیم نشده است یا این سفارش نیاز به پرداخت ندارد.</p>
+                <p class="storefront-alert storefront-alert--error" role="alert">درگاه پرداخت در حال حاضر در دسترس نیست. لطفاً بعداً دوباره تلاش کنید.</p>
             @endif
             <a class="pill-button" href="{{ route('storefront.products.index') }}">ادامه خرید</a>
         </div>

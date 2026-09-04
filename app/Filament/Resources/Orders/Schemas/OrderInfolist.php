@@ -7,6 +7,7 @@ use App\Filament\Resources\Shipments\ShipmentResource;
 use App\Filament\Resources\Shipments\Support\ShipmentPresentation;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Support\JalaliDate;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -51,8 +52,8 @@ class OrderInfolist
                     TextEntry::make('shipping_total')->label('هزینه ارسال')->formatStateUsing(fn (mixed $state): string => OrderPresentation::money($state)),
                     TextEntry::make('grand_total')->label('مبلغ نهایی')->formatStateUsing(fn (mixed $state): string => OrderPresentation::money($state))->weight('bold'),
                     TextEntry::make('paid_total')->label('پرداخت‌شده')->formatStateUsing(fn (mixed $state): string => OrderPresentation::money($state)),
-                    TextEntry::make('created_at')->label('تاریخ ثبت')->dateTime(),
-                    TextEntry::make('updated_at')->label('آخرین بروزرسانی')->dateTime(),
+                    TextEntry::make('created_at')->label('تاریخ ثبت')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
+                    TextEntry::make('updated_at')->label('آخرین بروزرسانی')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
                 ]),
             Section::make('اطلاعات ارسال')
                 ->columns(4)
@@ -60,8 +61,8 @@ class OrderInfolist
                     TextEntry::make('shipment.shipment_number')->label('شماره مرسوله')->placeholder('ایجاد نشده')->url(fn (Order $record): ?string => $record->shipment ? ShipmentResource::getUrl('view', ['record' => $record->shipment]) : null),
                     TextEntry::make('shipment.status')->label('وضعیت مرسوله')->placeholder('ایجاد نشده')->badge()->formatStateUsing(fn (mixed $state): string => ShipmentPresentation::status($state))->color(fn (mixed $state): string => ShipmentPresentation::color($state)),
                     TextEntry::make('shipment.tracking_number')->label('کد رهگیری')->placeholder('ثبت نشده'),
-                    TextEntry::make('shipment.shipped_at')->label('زمان ارسال')->dateTime()->placeholder('ثبت نشده'),
-                    TextEntry::make('shipment.delivered_at')->label('زمان تحویل')->dateTime()->placeholder('ثبت نشده'),
+                    TextEntry::make('shipment.shipped_at')->label('زمان ارسال')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('ثبت نشده'),
+                    TextEntry::make('shipment.delivered_at')->label('زمان تحویل')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('ثبت نشده'),
                 ]),
             Section::make('تصویر تاریخی مشتری و آدرس')
                 ->columns(2)
@@ -158,8 +159,8 @@ class OrderInfolist
                             TextEntry::make('owner')->label('مالک موجودی'),
                             TextEntry::make('quantity')->label('تعداد رزرو'),
                             TextEntry::make('status')->label('وضعیت')->badge()->formatStateUsing(fn (mixed $state): string => OrderPresentation::reservationStatus($state))->color(fn (mixed $state): string => OrderPresentation::reservationStatusColor($state)),
-                            TextEntry::make('created_at')->label('ایجاد')->dateTime()->placeholder('—'),
-                            TextEntry::make('expires_at')->label('انقضا')->dateTime()->placeholder('—'),
+                            TextEntry::make('created_at')->label('ایجاد')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('—'),
+                            TextEntry::make('expires_at')->label('انقضا')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('—'),
                         ]),
                 ]),
             Section::make('تلاش‌های پرداخت')
@@ -183,7 +184,7 @@ class OrderInfolist
                             TextEntry::make('authority')->label('شناسه شروع')->placeholder('—'),
                             TextEntry::make('reference_id')->label('شناسه مرجع')->placeholder('—'),
                             TextEntry::make('reconciliation_required')->label('تطبیق')->badge()->formatStateUsing(fn (mixed $state): string => $state ? 'نیازمند بررسی' : 'نیازی نیست')->color(fn (mixed $state): string => $state ? 'danger' : 'gray'),
-                            TextEntry::make('verified_at')->label('تأیید')->dateTime()->placeholder('—'),
+                            TextEntry::make('verified_at')->label('تأیید')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('—'),
                         ]),
                 ]),
             Section::make('تاریخچه تراکنش‌های پرداخت')
@@ -214,7 +215,7 @@ class OrderInfolist
                             TextEntry::make('status')->label('وضعیت'),
                             TextEntry::make('amount')->label('مبلغ')->formatStateUsing(fn (mixed $state): string => OrderPresentation::money($state)),
                             TextEntry::make('reference_id')->label('شناسه مرجع')->placeholder('—'),
-                            TextEntry::make('created_at')->label('زمان')->dateTime(),
+                            TextEntry::make('created_at')->label('زمان')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
                         ]),
                 ]),
             Section::make('تاریخچه وضعیت سفارش')
@@ -234,7 +235,7 @@ class OrderInfolist
                             TextEntry::make('to_status')->label('وضعیت جدید')->formatStateUsing(fn (mixed $state): string => OrderPresentation::orderStatus($state)),
                             TextEntry::make('comment')->label('توضیح')->placeholder('—')->prose(),
                             TextEntry::make('user.name')->label('کاربر')->placeholder('سیستم'),
-                            TextEntry::make('created_at')->label('زمان')->dateTime(),
+                            TextEntry::make('created_at')->label('زمان')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
                         ]),
                 ]),
         ]);

@@ -12,7 +12,7 @@
             <header class="article-header">
                 @if ($post->categories->first())<span class="article-badge">{{ $post->categories->first()->name }}</span>@endif
                 <h1>{{ $post->title }}</h1>
-                <div class="article-meta"><span>{{ $post->published_at?->format('Y/m/d') }}</span>@if ($post->author)<span>نویسنده: {{ $post->author->name }}</span>@endif</div>
+                <div class="article-meta"><span>{{ \App\Support\JalaliDate::format($post->published_at, 'j F Y') }}</span>@if ($post->author)<span>نویسنده: {{ $post->author->name }}</span>@endif</div>
             </header>
             <div class="article-media">@if ($post->featured_image)<img src="{{ \Illuminate\Support\Facades\Storage::disk(config('media.public_disk', 'public'))->url($post->featured_image) }}" alt="{{ $post->title }}">@else<span>جای تصویر اصلی مقاله</span>@endif</div>
             <div class="article-layout"><div class="article-body">{!! $post->content !!}</div><aside class="public-card toc-card"><h2>دسته‌بندی</h2>@foreach ($post->categories as $category)<a href="{{ route('storefront.blog.index', ['category' => $category->slug]) }}">{{ $category->name }}</a>@endforeach</aside></div>

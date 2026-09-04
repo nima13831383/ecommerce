@@ -2,7 +2,7 @@
 
 namespace App\Filament\Resources\Coupons\Schemas;
 
-use Filament\Forms\Components\DateTimePicker;
+use App\Filament\Forms\Components\JalaliDateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -52,8 +52,8 @@ class CouponForm
                     ->default(false),
                 Toggle::make('is_active')
                     ->required(),
-                DateTimePicker::make('starts_at'),
-                DateTimePicker::make('expires_at'),
+                JalaliDateTimePicker::make('starts_at'),
+                JalaliDateTimePicker::make('expires_at'),
             ]);
     }
 }

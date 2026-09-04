@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Coupons\Tables;
 
+use App\Support\JalaliDate;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -49,17 +50,17 @@ class CouponsTable
                 IconColumn::make('is_active')
                     ->boolean(),
                 TextColumn::make('starts_at')
-                    ->dateTime()
+                    ->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)
                     ->sortable(),
                 TextColumn::make('expires_at')
-                    ->dateTime()
+                    ->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)
                     ->sortable(),
                 TextColumn::make('created_at')
-                    ->dateTime()
+                    ->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('updated_at')
-                    ->dateTime()
+                    ->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])

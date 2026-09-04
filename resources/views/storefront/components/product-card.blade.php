@@ -9,16 +9,18 @@
     $minimum = $pricing['minimum_price'] ?? null;
     $maximum = $pricing['maximum_price'] ?? null;
     $discounted = (bool) ($pricing['is_discounted'] ?? false);
+    $discountPercent = (int) ($pricing['discount_percent'] ?? 0);
 @endphp
 
 <article class="product-card" data-product-card>
     <a class="product-card__link" href="{{ route('storefront.products.show', ['product' => $product['slug']]) }}" aria-label="{{ $product['name'] }}">
         <div class="product-card__media {{ $image ? '' : 'media-placeholder' }}">
+            <button class="favorite" type="button" aria-label="افزودن {{ $product['name'] }} به علاقه‌مندی‌ها"><svg class="icon"><use href="#i-heart"></use></svg></button>
             @if ($image)
                 <img src="{{ $image['url'] }}" alt="{{ $image['alt'] ?: $product['name'] }}" loading="lazy">
             @endif
-            @if ($discounted)
-                <span class="discount">تخفیف</span>
+            @if ($discounted && $discountPercent > 0)
+                <span class="discount">{{ $discountPercent }}٪</span>
             @endif
         </div>
         <div class="product-card__body">

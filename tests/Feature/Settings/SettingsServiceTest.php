@@ -47,7 +47,7 @@ test('referential settings reject missing and inactive tax classes without persi
     ]);
 
     expect(fn () => $service->update('default_tax_class_id', $inactive->id))->toThrow(ValidationException::class)
-        ->and(Setting::query()->where('key', 'default_tax_class_id')->exists())->toBeFalse();
+        ->and(Setting::query()->where('key', 'default_tax_class_id')->value('value'))->toBeNull();
 });
 
 test('settings updates log safe context without values', function (): void {

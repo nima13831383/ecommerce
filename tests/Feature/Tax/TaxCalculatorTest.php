@@ -84,12 +84,10 @@ test('it rejects invalid negative, fractional fixed, and over-one-hundred-percen
 
 test('a product delegates tax calculation to its configured default tax class', function (): void {
     $taxClass = taxClass(TaxType::Percent, '9.000');
-    Setting::query()->create([
-        'group' => 'tax',
-        'key' => 'default_tax_class_id',
-        'type' => 'integer',
-        'value' => $taxClass->id,
-    ]);
+    Setting::query()->updateOrCreate(
+        ['group' => 'tax', 'key' => 'default_tax_class_id'],
+        ['type' => 'integer', 'value' => $taxClass->id],
+    );
 
     expect(taxableProduct()->taxAmountForPrice(10_000))->toBe(900);
 });

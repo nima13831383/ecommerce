@@ -16,31 +16,40 @@
                 </div>
                 <span class="category-heading__count">نمایش {{ $paginator->firstItem() ?? 0 }}–{{ $paginator->lastItem() ?? 0 }} از {{ $paginator->total() }} محصول</span>
             </section>
+            @php($activeCategories = (array) ($filters['categories'] ?? ($filters['category'] ?? [])))
+            @php($activeBrands = (array) ($filters['brands'] ?? ($filters['brand'] ?? [])))
+            @if ($activeCategories !== [] || $activeBrands !== [] || ! empty($filters['search']) || ! empty($filters['in_stock']))
+                <div class="active-filters" aria-label="فیلترهای فعال">
+                    @foreach ($activeCategories as $active)<a href="{{ route('storefront.products.index', array_merge($filters, ['categories' => array_values(array_diff($activeCategories, [$active])), 'page' => null])) }}">دسته: {{ $active }} ×</a>@endforeach
+                    @foreach ($activeBrands as $active)<a href="{{ route('storefront.products.index', array_merge($filters, ['brands' => array_values(array_diff($activeBrands, [$active])), 'page' => null])) }}">برند: {{ $active }} ×</a>@endforeach
+                    <button type="reset" form="product-filter-form" data-filter-reset>پاک کردن همه</button>
+                </div>
+            @endif
 
             <div class="category-content">
-                <form class="category-filters" method="get" action="{{ route('storefront.products.index') }}" aria-label="فیلتر محصولات">
+                <form id="product-filter-form" class="category-filters" method="get" action="{{ route('storefront.products.index') }}" aria-label="فیلتر محصولات">
                     <div class="category-filter-drawer__header"><h2>فیلتر محصولات</h2></div>
-                    <div class="filter-group"><details open><summary>دسته‌بندی</summary><div class="filter-options">
+                    <div class="filter-group"><details><summary>دسته‌بندی</summary><div class="filter-options">
                         @foreach ($categories as $category)
-                            <label class="filter-check"><input type="radio" name="category" value="{{ $category->slug }}" @checked(($filters['category'] ?? null) === $category->slug)> {{ $category->name }}</label>
+                            <label class="filter-check"><input type="checkbox" name="categories[]" value="{{ $category->slug }}" @checked(in_array($category->slug, (array) ($filters['categories'] ?? ($filters['category'] ?? [])), true))> {{ $category->name }}</label>
                         @endforeach
                     </div></details></div>
-                    <div class="filter-group"><details open><summary>برند</summary><div class="filter-options">
+                    <div class="filter-group"><details><summary>برند</summary><div class="filter-options">
                         @foreach ($brands as $brand)
-                            <label class="filter-check"><input type="radio" name="brand" value="{{ $brand->slug }}" @checked(($filters['brand'] ?? null) === $brand->slug)> {{ $brand->name }}</label>
+                            <label class="filter-check"><input type="checkbox" name="brands[]" value="{{ $brand->slug }}" @checked(in_array($brand->slug, (array) ($filters['brands'] ?? ($filters['brand'] ?? [])), true))> {{ $brand->name }}</label>
                         @endforeach
                     </div></details></div>
-                    <div class="filter-group"><details open><summary>محدوده قیمت (ریال)</summary><div class="price-fields">
+                    <div class="filter-group"><details><summary>محدوده قیمت (ریال)</summary><div class="price-fields">
                         <label>از<input type="number" min="0" name="min_price" value="{{ $filters['min_price'] ?? '' }}"></label>
                         <label>تا<input type="number" min="0" name="max_price" value="{{ $filters['max_price'] ?? '' }}"></label>
                     </div></details></div>
-                    <div class="filter-group"><details open><summary>وضعیت</summary><div class="filter-options">
+                    <div class="filter-group"><details><summary>وضعیت</summary><div class="filter-options">
                         <label class="filter-check"><input type="checkbox" name="in_stock" value="1" @checked(filter_var($filters['in_stock'] ?? false, FILTER_VALIDATE_BOOLEAN))> فقط کالاهای موجود</label>
                     </div></details></div>
                     <input type="hidden" name="search" value="{{ $filters['search'] ?? '' }}">
                     <input type="hidden" name="type" value="{{ $filters['type'] ?? '' }}">
                     <input type="hidden" name="sort" value="{{ $filters['sort'] ?? 'newest' }}">
-                    <div class="filter-actions"><button class="filter-actions__reset" type="reset" data-filter-reset>پاک کردن</button><button class="filter-actions__apply" type="submit" data-filter-apply>اعمال فیلترها</button></div>
+                    <div class="filter-actions"><button class="filter-actions__reset" type="reset" data-filter-reset>پاک کردن همه</button></div>
                 </form>
 
                 <section class="category-main" aria-labelledby="products-title">
@@ -60,17 +69,7 @@
                         @endforeach
                     </form>
 
-                    @if (count($products))
-                        <div id="products" class="category-products" data-category-products>
-                            @foreach ($products as $product)
-                                @include('storefront.components.product-card', ['product' => $product])
-                            @endforeach
-                        </div>
-                    @else
-                        <div class="storefront-empty" role="status"><h2>محصولی پیدا نشد</h2><p>فیلترها یا عبارت جست‌وجو را تغییر دهید.</p></div>
-                    @endif
-
-                    @include('storefront.components.pagination', ['paginator' => $paginator])
+                    @include('storefront.products._results')
                 </section>
             </div>
         </div>

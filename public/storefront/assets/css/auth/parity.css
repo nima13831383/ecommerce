@@ -1,0 +1,2 @@
+.auth-body { min-height: 100vh; background: #fffaf9 url("../../loginbackground.png") center top / cover no-repeat; }
+@media (max-width: 900px) { .auth-body { background-image: url("../../loginbackmobile.png"); } }

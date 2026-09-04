@@ -70,13 +70,15 @@ class ProductCatalogQuery
             });
         });
 
-        $query->when($filters['category'] ?? null, fn (Builder $query, string $slug) => $query->whereHas('categories', fn (Builder $categoryQuery) => $categoryQuery
-            ->where('slug', $slug)
-            ->where('is_active', true))
-        );
+        $categories = array_values(array_filter((array) ($filters['categories'] ?? ($filters['category'] ?? []))));
+        $query->when($categories !== [], function (Builder $query) use ($categories): void {
+            $query->whereHas('categories', fn (Builder $categoryQuery) => $categoryQuery
+                ->whereIn('slug', $categories)
+                ->where('is_active', true));
+        });
 
-        $query->when($filters['brand'] ?? null, fn (Builder $query, string $slug) => $query->whereIn('brand_id', Brand::query()->where('slug', $slug)->where('is_active', true)->select('id'))
-        );
+        $brands = array_values(array_filter((array) ($filters['brands'] ?? ($filters['brand'] ?? []))));
+        $query->when($brands !== [], fn (Builder $query) => $query->whereIn('brand_id', Brand::query()->whereIn('slug', $brands)->where('is_active', true)->select('id')));
 
         $query->when($filters['type'] ?? null, fn (Builder $query, string $type) => $query->where('type', $type));
 

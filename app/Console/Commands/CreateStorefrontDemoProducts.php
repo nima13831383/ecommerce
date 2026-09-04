@@ -14,6 +14,7 @@ use App\Models\Tag;
 use App\Models\TaxClass;
 use App\Services\Catalog\ProductVariantService;
 use App\Services\Inventory\InventoryService;
+use App\Support\DatabaseSafetyGuard;
 use DomainException;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
@@ -47,6 +48,14 @@ class CreateStorefrontDemoProducts extends Command
 
     public function handle(ProductVariantService $variants, InventoryService $inventory): int
     {
+        try {
+            DatabaseSafetyGuard::assertTestingDatabaseIsolated();
+        } catch (\LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
+
         if (! app()->environment(['local', 'development', 'testing'])) {
             $this->error('This development-only command is allowed only in local, development, or testing environments.');
 

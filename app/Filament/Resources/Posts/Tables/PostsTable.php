@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Posts\Tables;
 
 use App\Enums\PostStatus;
+use App\Support\JalaliDate;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
@@ -32,8 +33,8 @@ class PostsTable
                         default => 'gray',
                     }),
                 TextColumn::make('categories.name')->label('دسته‌بندی')->listWithLineBreaks()->limitList(2),
-                TextColumn::make('published_at')->label('زمان انتشار')->dateTime('Y/m/d H:i')->sortable(),
-                TextColumn::make('updated_at')->label('آخرین تغییر')->dateTime('Y/m/d H:i')->sortable(),
+                TextColumn::make('published_at')->label('زمان انتشار')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->sortable(),
+                TextColumn::make('updated_at')->label('آخرین تغییر')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->sortable(),
             ])
             ->filters([
                 SelectFilter::make('status')->label('وضعیت')->options([

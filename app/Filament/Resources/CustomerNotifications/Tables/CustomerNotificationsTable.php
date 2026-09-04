@@ -9,6 +9,7 @@ use App\Filament\Resources\CustomerNotifications\CustomerNotificationResource;
 use App\Filament\Resources\CustomerNotifications\Support\CustomerNotificationPresentation;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\CustomerNotification;
+use App\Support\JalaliDate;
 use Filament\Actions\ViewAction;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
@@ -28,7 +29,7 @@ class CustomerNotificationsTable
                 TextColumn::make('order.order_number')->label('شماره سفارش')->searchable()->url(fn (CustomerNotification $record): ?string => $record->order_id ? OrderResource::getUrl('view', ['record' => $record->order_id]) : null),
                 TextColumn::make('recipient_snapshot')->label('گیرنده')->state(fn (CustomerNotification $record): string => implode(' | ', array_filter([$record->recipient_snapshot['name'] ?? null, $record->recipient_snapshot['mobile'] ?? null, $record->recipient_snapshot['email'] ?? null]))),
                 TextColumn::make('attempts')->label('تلاش‌ها')->sortable(),
-                TextColumn::make('created_at')->label('ایجاد')->dateTime()->sortable(),
+                TextColumn::make('created_at')->label('ایجاد')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->sortable(),
             ])
             ->filters([
                 SelectFilter::make('type')->label('نوع')->options(collect(CustomerNotificationType::cases())->mapWithKeys(fn ($type): array => [$type->value => CustomerNotificationPresentation::type($type)])->all()),

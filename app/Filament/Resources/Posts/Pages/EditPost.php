@@ -3,13 +3,13 @@
 namespace App\Filament\Resources\Posts\Pages;
 
 use App\Enums\PostStatus;
+use App\Filament\Forms\Components\JalaliDateTimePicker;
 use App\Filament\Resources\Posts\PostResource;
 use App\Models\Post;
 use App\Services\Blog\PostService;
 use Filament\Actions\Action;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\RestoreAction;
-use Filament\Forms\Components\DateTimePicker;
 use Filament\Notifications\Notification;
 use Filament\Resources\Pages\EditRecord;
 use Illuminate\Database\Eloquent\Model;
@@ -50,7 +50,7 @@ class EditPost extends EditRecord
                 ->label('زمان‌بندی انتشار')
                 ->authorize('publish')
                 ->visible(fn (Post $record): bool => $record->status !== PostStatus::Published)
-                ->form([DateTimePicker::make('published_at')->label('زمان انتشار')->required()->seconds(false)->minDate(now())])
+                ->form([JalaliDateTimePicker::make('published_at')->label('زمان انتشار')->required()->seconds(false)->minDate(now())])
                 ->action(function (Post $record, array $data): void {
                     app(PostService::class)->schedule($record, now()->parse($data['published_at']), auth()->user());
                     Notification::make()->title('انتشار نوشته زمان‌بندی شد.')->success()->send();

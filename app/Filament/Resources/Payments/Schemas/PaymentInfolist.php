@@ -6,6 +6,7 @@ use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\Orders\Support\OrderPresentation;
 use App\Filament\Resources\Payments\Support\PaymentPresentation;
 use App\Models\Payment;
+use App\Support\JalaliDate;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -48,10 +49,10 @@ class PaymentInfolist
                     TextEntry::make('reconciliation_required')->label('تطبیق')->badge()
                         ->formatStateUsing(fn (mixed $state): string => $state ? 'نیازمند بررسی' : 'نیازی نیست')
                         ->color(fn (mixed $state): string => $state ? 'danger' : 'gray'),
-                    TextEntry::make('verified_at')->label('زمان تأیید')->dateTime()->placeholder('ثبت نشده'),
-                    TextEntry::make('created_at')->label('زمان ایجاد')->dateTime(),
-                    TextEntry::make('expires_at')->label('زمان انقضای تلاش')->dateTime()->placeholder('ثبت نشده'),
-                    TextEntry::make('paid_at')->label('زمان پرداخت')->dateTime()->placeholder('ثبت نشده'),
+                    TextEntry::make('verified_at')->label('زمان تأیید')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('ثبت نشده'),
+                    TextEntry::make('created_at')->label('زمان ایجاد')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
+                    TextEntry::make('expires_at')->label('زمان انقضای تلاش')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('ثبت نشده'),
+                    TextEntry::make('paid_at')->label('زمان پرداخت')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('ثبت نشده'),
                 ]),
             Section::make('سفارش مرتبط')
                 ->columns(4)
@@ -112,7 +113,7 @@ class PaymentInfolist
                             TextEntry::make('amount')->label('مبلغ')->formatStateUsing(fn (mixed $state, mixed $record): string => PaymentPresentation::money($state, is_array($record) ? $record['currency'] : null)),
                             TextEntry::make('authority')->label('شناسه شروع')->placeholder('—'),
                             TextEntry::make('reference_id')->label('شماره مرجع')->placeholder('—'),
-                            TextEntry::make('created_at')->label('زمان')->dateTime(),
+                            TextEntry::make('created_at')->label('زمان')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
                             TextEntry::make('gateway_status_code')->label('کد پاسخ')->placeholder('—'),
                             TextEntry::make('message')->label('پیام')->placeholder('—')->prose(),
                             TextEntry::make('metadata')->label('متادیتای امن')->prose()->columnSpanFull(),
@@ -149,7 +150,7 @@ class PaymentInfolist
                             TextEntry::make('amount')->label('مبلغ')->formatStateUsing(fn (mixed $state, mixed $record): string => PaymentPresentation::money($state, is_array($record) ? $record['currency'] : null)),
                             TextEntry::make('gateway')->label('درگاه')->placeholder('—'),
                             TextEntry::make('reconciliation_required')->label('تطبیق')->formatStateUsing(fn (mixed $state): string => $state ? 'نیازمند بررسی' : 'نیازی نیست')->color(fn (mixed $state): string => $state ? 'danger' : 'gray'),
-                            TextEntry::make('created_at')->label('زمان ایجاد')->dateTime(),
+                            TextEntry::make('created_at')->label('زمان ایجاد')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
                         ]),
                 ])
                 ->collapsible(),

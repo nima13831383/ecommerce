@@ -4,11 +4,12 @@ namespace App\Filament\Resources\Orders\Tables;
 
 use App\Enums\OrderPaymentStatus;
 use App\Enums\OrderStatus;
+use App\Filament\Forms\Components\JalaliDatePicker;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\Orders\Support\OrderPresentation;
 use App\Models\Order;
+use App\Support\JalaliDate;
 use Filament\Actions\ViewAction;
-use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -79,7 +80,7 @@ class OrdersTable
                     ->falseColor('gray'),
                 TextColumn::make('created_at')
                     ->label('تاریخ ثبت')
-                    ->dateTime()
+                    ->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)
                     ->sortable(),
             ])
             ->filters([
@@ -95,8 +96,8 @@ class OrdersTable
                 Filter::make('created_between')
                     ->label('بازه تاریخ ثبت')
                     ->form([
-                        DatePicker::make('from')->label('از تاریخ'),
-                        DatePicker::make('until')->label('تا تاریخ'),
+                        JalaliDatePicker::make('from')->label('از تاریخ'),
+                        JalaliDatePicker::make('until')->label('تا تاریخ'),
                     ])
                     ->query(fn (Builder $query, array $data): Builder => $query
                         ->when($data['from'] ?? null, fn (Builder $query, string $date): Builder => $query->whereDate('created_at', '>=', $date))

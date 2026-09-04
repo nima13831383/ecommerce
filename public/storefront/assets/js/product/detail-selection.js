@@ -120,5 +120,23 @@
       $quantityInput.val(current);
       $page.find('[data-quantity-value]').text(current.toLocaleString('fa-IR')).attr('aria-label', 'تعداد ' + current);
     });
+
+    $page.on('submit.productAddToCart', '[data-add-cart-form]', function (event) {
+      event.preventDefault();
+      const $form = $(this); const $message = $page.find('[data-add-cart-message]');
+      const $button = $form.find('[data-add-cart]');
+      if ($button.prop('disabled')) return;
+      $button.prop('disabled', true); $message.removeClass('is-error is-success').text('در حال افزودن...');
+      $.ajax({ url: $form.attr('action'), method: 'POST', data: $form.serialize(), headers: { Accept: 'application/json' } })
+        .done(function (response) {
+          $message.addClass('is-success').text(response.message || 'محصول به سبد خرید اضافه شد.');
+          const cart = response.cart || {};
+          $('[data-cart-count]').remove();
+          if (Number(cart.item_count || 0) > 0) $('.cart-trigger').append('<span class="header-cart-count" data-cart-count>' + cart.item_count + '</span>');
+          $(document).trigger('cart:updated', [cart]);
+        })
+        .fail(function (xhr) { const message = xhr.responseJSON && xhr.responseJSON.message ? xhr.responseJSON.message : 'افزودن به سبد خرید ممکن نیست.'; $message.addClass('is-error').text(message); })
+        .always(function () { $button.prop('disabled', false); });
+    });
   });
 }(window.jQuery));

@@ -27,12 +27,10 @@ function shippingTaxRuntimeAdmin(array $permissions): User
 
 function shippingSetting(string $key, string $type, mixed $value = null): Setting
 {
-    return Setting::query()->create([
-        'group' => 'shipping',
-        'key' => $key,
-        'type' => $type,
-        'value' => $value,
-    ]);
+    return Setting::query()->firstOrCreate(
+        ['group' => 'shipping', 'key' => $key],
+        ['type' => $type, 'value' => $value],
+    );
 }
 
 function saveRuntimeSetting(User $user, Setting $setting, mixed $value): void

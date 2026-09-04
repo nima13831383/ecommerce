@@ -31,6 +31,10 @@ class Setting extends Model
         return Attribute::get(function (): mixed {
             $raw = $this->attributes['value'] ?? null;
 
+            if ($raw === null) {
+                return null;
+            }
+
             return match ($this->type) {
                 'boolean' => filter_var($raw, FILTER_VALIDATE_BOOLEAN),
                 'integer', 'money' => (int) $raw,

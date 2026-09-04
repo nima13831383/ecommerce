@@ -6,6 +6,7 @@ use App\Filament\Resources\Inventory\Support\InventoryPresentation;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\InventoryReservation;
 use App\Services\Inventory\InventoryService;
+use App\Support\JalaliDate;
 use App\Support\SafeMetadata;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -39,10 +40,10 @@ class InventoryReservationInfolist
                 TextEntry::make('status')->label('وضعیت')->badge()->formatStateUsing(fn (mixed $state): string => InventoryPresentation::reservationStatus($state))->color(fn (mixed $state): string => InventoryPresentation::reservationStatusColor($state)),
                 TextEntry::make('reference_id')->label('شناسه مرجع')->copyable(),
                 TextEntry::make('reference_type')->label('نوع مرجع'),
-                TextEntry::make('created_at')->label('تاریخ ثبت')->dateTime(),
-                TextEntry::make('expires_at')->label('تاریخ انقضا')->dateTime(),
-                TextEntry::make('committed_at')->label('زمان قطعی‌سازی')->dateTime()->placeholder('ثبت نشده'),
-                TextEntry::make('released_at')->label('زمان آزادسازی')->dateTime()->placeholder('ثبت نشده'),
+                TextEntry::make('created_at')->label('تاریخ ثبت')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
+                TextEntry::make('expires_at')->label('تاریخ انقضا')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
+                TextEntry::make('committed_at')->label('زمان قطعی‌سازی')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('ثبت نشده'),
+                TextEntry::make('released_at')->label('زمان آزادسازی')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('ثبت نشده'),
             ]),
             Section::make('سفارش مرتبط')->columns(4)->schema([
                 TextEntry::make('order_number')->label('شماره سفارش')->state(fn (InventoryReservation $record): string => $record->orderItem?->order?->order_number ?? 'یافت نشد')->url(fn (InventoryReservation $record): ?string => $record->orderItem?->order ? OrderResource::getUrl('view', ['record' => $record->orderItem->order]) : null),

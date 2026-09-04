@@ -3,7 +3,7 @@
 @section('account-content')
     @include('storefront.partials.account-sidebar')
     <section class="account-content">
-        <div class="account-heading"><div><h1>آدرس‌های من</h1><p>آدرس‌های ذخیره‌شده برای ارسال سفارش‌ها.</p></div></div>
+        <div class="account-heading"><div><h1>آدرس‌های من</h1><p>آدرس‌های ذخیره‌شده برای ارسال سفارش‌ها.</p></div><button class="account-button account-button--pink" type="button" data-address-add>افزودن آدرس جدید</button></div>
         @if (session('status')) <p class="form-feedback" role="status">{{ session('status') }}</p> @endif
         @if ($errors->any()) <div class="form-error" role="alert">{{ $errors->first() }}</div> @endif
         <div class="address-list">
@@ -23,7 +23,7 @@
                 <div class="empty-state"><h2>هنوز آدرسی ثبت نکرده‌اید.</h2></div>
             @endforelse
         </div>
-        <section class="account-card address-form-panel is-open">
+        <section class="account-card address-form-panel {{ $editing || $errors->any() ? 'is-open' : '' }}" data-address-form-panel {{ $editing || $errors->any() ? '' : 'hidden' }}>
             <h2>{{ $editing ? 'ویرایش آدرس' : 'افزودن آدرس جدید' }}</h2>
             <form class="account-form" method="POST" action="{{ $editing ? route('storefront.account.addresses.update', $editing) : route('storefront.account.addresses.store') }}">
                 @csrf @if($editing) @method('PATCH') @endif
@@ -40,7 +40,7 @@
                     <label><span>واحد</span><input name="unit" value="{{ old('unit', $editing?->unit) }}"></label>
                     <label><span><input type="checkbox" name="is_default" value="1" @checked(old('is_default', $editing?->is_default))> آدرس پیش‌فرض</span></label>
                 </div>
-                <button class="account-button account-button--pink" type="submit">{{ $editing ? 'ذخیره تغییرات' : 'افزودن آدرس' }}</button>
+                <button class="account-button account-button--pink" type="submit">{{ $editing ? 'ذخیره تغییرات' : 'افزودن آدرس' }}</button><a class="account-button account-button--light" href="{{ route('storefront.account.addresses') }}" data-address-cancel>انصراف</a>
             </form>
         </section>
     </section>
@@ -48,6 +48,7 @@
 
 @push('scripts')
 <script>
+document.querySelector('[data-address-add]')?.addEventListener('click', function () { const panel = document.querySelector('[data-address-form-panel]'); panel.hidden = false; panel.classList.add('is-open'); });
 document.querySelector('[data-province-select]')?.addEventListener('change', async function () {
     const city = document.querySelector('[data-city-select]');
     city.innerHTML = '<option value="">در حال بارگذاری...</option>';

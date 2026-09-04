@@ -16,6 +16,9 @@ class ProductSummaryResource extends JsonResource
         $product = $this->resource;
         $prices = app(ProductPriceResolver::class)->pricesForProduct($product);
 
+        $regular = $prices['regular_price'];
+        $effective = $prices['effective_price'];
+
         return [
             'id' => (int) $product->id,
             'name' => $product->name,
@@ -46,6 +49,9 @@ class ProductSummaryResource extends JsonResource
 
     public static function pricing(array $prices): array
     {
+        $regular = $prices['regular_price'];
+        $effective = $prices['effective_price'];
+
         return [
             'regular_price' => $prices['regular_price'] === null ? null : (int) $prices['regular_price'],
             'sale_price' => $prices['sale_price'] === null ? null : (int) $prices['sale_price'],
@@ -54,6 +60,9 @@ class ProductSummaryResource extends JsonResource
             'maximum_price' => $prices['maximum_price'] === null ? null : (int) $prices['maximum_price'],
             'is_discounted' => (bool) $prices['is_discounted'],
             'currency' => 'IRR',
+            'discount_percent' => $regular && $effective !== null && $effective < $regular
+                ? (int) round((($regular - $effective) * 100) / $regular)
+                : 0,
         ];
     }
 

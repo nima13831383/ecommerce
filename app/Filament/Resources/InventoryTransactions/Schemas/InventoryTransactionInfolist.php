@@ -6,6 +6,7 @@ use App\Filament\Resources\Inventory\Support\InventoryPresentation;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\InventoryTransaction;
 use App\Services\Inventory\InventoryService;
+use App\Support\JalaliDate;
 use App\Support\SafeMetadata;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -32,7 +33,7 @@ class InventoryTransactionInfolist
                 TextEntry::make('reference_id')->label('شناسه مرجع')->copyable(),
                 TextEntry::make('reason')->label('دلیل')->placeholder('ثبت نشده')->prose(),
                 TextEntry::make('createdBy.name')->label('عامل ثبت‌کننده')->placeholder('سیستم یا نامشخص'),
-                TextEntry::make('created_at')->label('تاریخ ثبت')->dateTime(),
+                TextEntry::make('created_at')->label('تاریخ ثبت')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
             ]),
             Section::make('سفارش مرتبط')->schema([
                 TextEntry::make('order_number')->label('شماره سفارش')->state(fn (InventoryTransaction $record): string => $record->inventoryReservation?->orderItem?->order?->order_number ?? 'یافت نشد')->url(fn (InventoryTransaction $record): ?string => $record->inventoryReservation?->orderItem?->order ? OrderResource::getUrl('view', ['record' => $record->inventoryReservation->orderItem->order]) : null),

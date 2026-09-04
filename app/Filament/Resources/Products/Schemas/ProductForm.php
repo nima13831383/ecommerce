@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Products\Schemas;
 
 use App\Enums\TaxType;
+use App\Filament\Forms\Components\JalaliDateTimePicker;
 use App\Filament\Resources\TaxClasses\Schemas\TaxClassForm;
 use App\Models\Attribute;
 use App\Models\AttributeValue;
@@ -12,7 +13,6 @@ use App\Models\ProductImage;
 use App\Models\Tag;
 use App\Models\TaxClass;
 use Filament\Actions\Action;
-use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Hidden;
 use Filament\Forms\Components\Placeholder;
@@ -106,8 +106,8 @@ class ProductForm
             ->schema([
                 TextInput::make('price')->numeric()->step(1)->minValue(0)->required()->prefix('IRR'),
                 TextInput::make('sale_price')->numeric()->step(1)->minValue(0)->prefix('IRR'),
-                DateTimePicker::make('sale_starts_at'),
-                DateTimePicker::make('sale_ends_at'),
+                JalaliDateTimePicker::make('sale_starts_at'),
+                JalaliDateTimePicker::make('sale_ends_at'),
             ])
             ->columns(2);
     }
@@ -715,7 +715,7 @@ class ProductForm
 
                 Toggle::make('is_featured'),
 
-                DateTimePicker::make('published_at')->seconds(false),
+                JalaliDateTimePicker::make('published_at')->seconds(false),
             ])
             ->columns(2);
     }

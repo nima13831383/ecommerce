@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Settings\Schemas;
 use App\Models\TaxClass;
 use App\Services\Settings\SettingsService;
 use App\Services\Shipping\Data\WordpressShippingDataLoader;
+use App\Settings\SettingRegistry;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -21,7 +22,7 @@ class SettingForm
             TextInput::make('type')->label('نوع مقدار')->disabled()->dehydrated(),
             Select::make('value_string')
                 ->label('روش محاسبه هزینه ارسال')
-                ->options(['calculator' => 'محاسبه‌گر اصلی', 'fixed' => 'نرخ ثابت', 'free' => 'ارسال رایگان'])
+                ->options(SettingRegistry::get('shipping.mode')->options)
                 ->visible(fn (Get $get): bool => $get('key') === 'shipping.mode')
                 ->required(fn (Get $get): bool => $get('key') === 'shipping.mode'),
             Select::make('value_number')

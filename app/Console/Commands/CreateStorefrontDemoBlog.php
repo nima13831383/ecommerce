@@ -7,6 +7,7 @@ use App\Models\Post;
 use App\Models\PostCategory;
 use App\Models\PostTag;
 use App\Services\Blog\PostService;
+use App\Support\DatabaseSafetyGuard;
 use DomainException;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Storage;
@@ -37,6 +38,14 @@ class CreateStorefrontDemoBlog extends Command
 
     public function handle(PostService $posts): int
     {
+        try {
+            DatabaseSafetyGuard::assertTestingDatabaseIsolated();
+        } catch (\LogicException $exception) {
+            $this->error($exception->getMessage());
+
+            return self::FAILURE;
+        }
+
         if (! app()->environment(['local', 'development', 'testing'])) {
             $this->error('This development-only command is allowed only in local, development, or testing environments.');
 

@@ -114,7 +114,7 @@
                             </div>
                         @endif
 
-                        <form class="product-purchase-form" method="post" action="{{ route('storefront.cart.items.store') }}">
+                        <form class="product-purchase-form" method="post" action="{{ route('storefront.cart.items.store') }}" data-add-cart-form>
                             @csrf
                             <div class="product-purchase__row">
                             <div class="quantity-control" data-quantity>
@@ -131,14 +131,14 @@
                             <input type="hidden" name="variation_id" value="" data-selected-variation>
                             <input type="hidden" name="quantity" value="1" data-quantity-input>
                         </form>
+                        <p class="storefront-form-message" data-add-cart-message role="status" aria-live="polite"></p>
                     </div>
 
-                    <div class="product-benefits">
-                        <div class="product-benefits__item"><strong>ارسال مطمئن</strong><span>بسته‌بندی ایمن سفارش</span></div>
-                        <div class="product-benefits__item"><strong>پشتیبانی</strong><span>همراه شما در خرید</span></div>
-                    </div>
+                    <div class="product-benefits"><div class="product-benefits__item"><strong>تضمین اصالت کالا</strong><span>تضمین ۱۰۰٪ اصل بودن محصولات</span></div><div class="product-benefits__item"><strong>ارسال سریع</strong><span>تحویل مطمئن سفارش</span></div><div class="product-benefits__item"><strong>پرداخت امن</strong><span>پرداخت با کارت‌های شتاب</span></div><div class="product-benefits__item"><strong>پشتیبانی</strong><span>همراه شما در خرید</span></div></div>
                 </div>
             </section>
+            @if ($relatedProducts->isNotEmpty())<section class="product-section related-section" aria-labelledby="related-products-title"><div class="product-section__heading"><h2 id="related-products-title">محصولات مرتبط</h2></div><div class="product-grid">@foreach ($relatedProducts as $relatedProduct)@include('storefront.components.product-card', ['product' => $relatedProduct])@endforeach</div></section>@endif
+            <section class="product-section reviews-section" aria-labelledby="reviews-title"><div class="product-section__heading"><h2 id="reviews-title">نظرات کاربران</h2></div><div class="storefront-empty"><p>هنوز نظری ثبت نشده است.</p></div></section>
 
             <section class="product-section" aria-labelledby="product-description-title">
                 <div class="product-section__heading">

@@ -2,13 +2,14 @@
 
 namespace App\Filament\Resources\Users\Tables;
 
+use App\Filament\Forms\Components\JalaliDatePicker;
 use App\Filament\Resources\Users\UserResource;
 use App\Models\User;
+use App\Support\JalaliDate;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
 use Filament\Actions\RestoreAction;
 use Filament\Actions\ViewAction;
-use Filament\Forms\Components\DatePicker;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -35,8 +36,8 @@ class UsersTable
                 IconColumn::make('email_verified_at')->label('تأیید ایمیل')->boolean()->state(fn (User $record): bool => $record->email_verified_at !== null)->trueIcon('heroicon-o-check-circle')->trueColor('success')->falseIcon('heroicon-o-minus-circle')->falseColor('gray'),
                 TextColumn::make('orders_count')->label('تعداد سفارش‌ها')->badge()->sortable(),
                 IconColumn::make('deleted_at')->label('حساب حذف‌شده')->boolean()->state(fn (User $record): bool => $record->trashed())->trueIcon('heroicon-o-trash')->trueColor('danger')->falseIcon('heroicon-o-check-circle')->falseColor('gray'),
-                TextColumn::make('created_at')->label('تاریخ عضویت')->dateTime()->sortable(),
-                TextColumn::make('deleted_at')->label('تاریخ حذف')->dateTime()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('created_at')->label('تاریخ عضویت')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->sortable(),
+                TextColumn::make('deleted_at')->label('تاریخ حذف')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('role')->label('نقش')->options(fn (): array => Role::query()->orderBy('name')->pluck('name', 'name')->map(fn (string $name): string => self::roleLabel($name))->all())->query(fn (Builder $query, array $data): Builder => $query->when(filled($data['value'] ?? null), fn (Builder $q): Builder => $q->role($data['value']))),
@@ -46,7 +47,7 @@ class UsersTable
                     true: fn (Builder $query): Builder => $query->whereNotNull('email_verified_at'),
                     false: fn (Builder $query): Builder => $query->whereNull('email_verified_at'),
                 ),
-                Filter::make('created_between')->label('بازه تاریخ عضویت')->form([DatePicker::make('from')->label('از تاریخ'), DatePicker::make('until')->label('تا تاریخ')])->query(fn (Builder $query, array $data): Builder => $query->when($data['from'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '>=', $date))->when($data['until'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '<=', $date))),
+                Filter::make('created_between')->label('بازه تاریخ عضویت')->form([JalaliDatePicker::make('from')->label('از تاریخ'), JalaliDatePicker::make('until')->label('تا تاریخ')])->query(fn (Builder $query, array $data): Builder => $query->when($data['from'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '>=', $date))->when($data['until'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '<=', $date))),
                 Filter::make('has_orders')->label('دارای سفارش')->query(fn (Builder $query): Builder => $query->has('orders')),
             ])
             ->recordActions([

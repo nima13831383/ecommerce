@@ -20,6 +20,7 @@ use App\Services\Storefront\StorefrontShippingQuoteService;
 use DomainException;
 use Illuminate\Contracts\View\View;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 
 class CartController extends Controller
@@ -114,7 +115,7 @@ class CartController extends Controller
         }
     }
 
-    public function store(CartItemStoreRequest $request): RedirectResponse
+    public function store(CartItemStoreRequest $request): RedirectResponse|JsonResponse
     {
         try {
             $product = Product::query()->withTrashed()->findOrFail((int) $request->integer('product_id'));
@@ -132,10 +133,20 @@ class CartController extends Controller
                 $variation,
             );
 
+            if ($request->expectsJson()) {
+                $cart = $this->carts->recalculate($this->context->current())->cart;
+
+                return response()->json(['message' => 'محصول با موفقیت به سبد خرید اضافه شد.', 'cart' => $this->context->present($cart)]);
+            }
+
             return redirect()
                 ->route('storefront.cart.show')
                 ->with('status', 'محصول با موفقیت به سبد خرید اضافه شد.');
         } catch (DomainException|ModelNotFoundException) {
+            if ($request->expectsJson()) {
+                return response()->json(['message' => 'امکان افزودن این محصول به سبد خرید وجود ندارد.', 'code' => 'cart_item_unavailable'], 422);
+            }
+
             return $this->cartError('امکان افزودن این محصول به سبد خرید وجود ندارد.');
         }
     }

@@ -4,7 +4,7 @@
         @if ($post->categories->first())<span class="article-badge">{{ $post->categories->first()->name }}</span>@endif
         <h2><a href="{{ route('storefront.blog.show', ['post' => $post->slug]) }}">{{ $post->title }}</a></h2>
         @if ($post->excerpt)<p class="article-excerpt">{{ $post->excerpt }}</p>@endif
-        <div class="article-meta"><span>{{ $post->published_at?->format('Y/m/d') }}</span></div>
+        <div class="article-meta"><span>{{ \App\Support\JalaliDate::format($post->published_at, 'j F Y') }}</span></div>
         <a class="article-link" href="{{ route('storefront.blog.show', ['post' => $post->slug]) }}">ادامه مطلب</a>
     </div>
 </article>

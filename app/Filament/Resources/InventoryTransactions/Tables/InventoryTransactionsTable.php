@@ -3,14 +3,15 @@
 namespace App\Filament\Resources\InventoryTransactions\Tables;
 
 use App\Enums\InventoryOperation;
+use App\Filament\Forms\Components\JalaliDatePicker;
 use App\Filament\Resources\Inventory\Support\InventoryPresentation;
 use App\Filament\Resources\InventoryTransactions\InventoryTransactionResource;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\InventoryTransaction;
 use App\Models\Product;
 use App\Models\ProductVariation;
+use App\Support\JalaliDate;
 use Filament\Actions\ViewAction;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\Filter;
@@ -37,13 +38,13 @@ class InventoryTransactionsTable
                 TextColumn::make('order_number')->label('سفارش مرتبط')->state(fn (InventoryTransaction $record): string => $record->inventoryReservation?->orderItem?->order?->order_number ?? '—')->url(fn (InventoryTransaction $record): ?string => $record->inventoryReservation?->orderItem?->order ? OrderResource::getUrl('view', ['record' => $record->inventoryReservation->orderItem->order]) : null),
                 TextColumn::make('reference_id')->label('شناسه مرجع')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 TextColumn::make('createdBy.name')->label('عامل ثبت‌کننده')->searchable()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('created_at')->label('تاریخ ثبت')->dateTime()->sortable(),
+                TextColumn::make('created_at')->label('تاریخ ثبت')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->sortable(),
             ])
             ->filters([
                 SelectFilter::make('operation')->label('نوع عملیات')->options(self::enumOptions(InventoryOperation::cases(), InventoryPresentation::operation(...))),
                 SelectFilter::make('inventory_owner_type')->label('نوع مالک')->options([Product::class => 'محصول', ProductVariation::class => 'تنوع محصول']),
                 SelectFilter::make('direction')->label('جهت تغییر')->options(['positive' => 'افزایش', 'negative' => 'کاهش'])->query(fn (Builder $query, array $data): Builder => $query->when(($data['value'] ?? null) === 'positive', fn (Builder $q): Builder => $q->where('quantity_delta', '>', 0))->when(($data['value'] ?? null) === 'negative', fn (Builder $q): Builder => $q->where('quantity_delta', '<', 0))),
-                Filter::make('dates')->label('بازه زمانی')->form([DatePicker::make('from')->label('از تاریخ'), DatePicker::make('until')->label('تا تاریخ')])->query(fn (Builder $query, array $data): Builder => $query->when($data['from'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '>=', $date))->when($data['until'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '<=', $date))),
+                Filter::make('dates')->label('بازه زمانی')->form([JalaliDatePicker::make('from')->label('از تاریخ'), JalaliDatePicker::make('until')->label('تا تاریخ')])->query(fn (Builder $query, array $data): Builder => $query->when($data['from'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '>=', $date))->when($data['until'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '<=', $date))),
                 Filter::make('owner_search')->label('جست‌وجوی مالک')->form([TextInput::make('value')->label('نام محصول یا SKU')])->query(fn (Builder $query, array $data): Builder => $query->when(filled($data['value'] ?? null), function (Builder $q) use ($data): Builder {
                     $term = '%'.$data['value'].'%';
 

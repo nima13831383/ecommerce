@@ -72,6 +72,35 @@ test('guest cannot initiate payment and owner receives a provider-neutral handof
         ->and($payment->status)->toBe(PaymentStatus::Processing);
 });
 
+test('checkout success exposes a csrf protected payment form when a gateway is available', function (): void {
+    $user = User::factory()->create();
+    $order = storefrontPaymentOrder(storefrontPaymentProduct('button-contract'));
+    $order->forceFill(['user_id' => $user->id])->save();
+
+    $this->actingAs($user)
+        ->get(route('storefront.checkout.success', ['order' => $order->id]))
+        ->assertOk()
+        ->assertSee('method="post"', false)
+        ->assertSee(route('storefront.payment.initiate', ['order' => $order->order_number]), false)
+        ->assertSee('name="_token"', false)
+        ->assertSee('ادامه به پرداخت');
+});
+
+test('checkout success visibly explains an unavailable configured gateway', function (): void {
+    $user = User::factory()->create();
+    $order = storefrontPaymentOrder(storefrontPaymentProduct('unavailable-gateway'));
+    $order->forceFill(['user_id' => $user->id])->save();
+
+    config(['payment.storefront_gateway' => 'zarinpal']);
+    $this->app->instance(PaymentGatewayRegistry::class, new PaymentGatewayRegistry([]));
+
+    $this->actingAs($user)
+        ->get(route('storefront.checkout.success', ['order' => $order->id]))
+        ->assertOk()
+        ->assertSee('درگاه پرداخت در حال حاضر در دسترس نیست.')
+        ->assertDontSee('ادامه به پرداخت');
+});
+
 test('fake payment return verifies once, commits inventory, and exposes safe result data', function (): void {
     $user = User::factory()->create();
     $product = storefrontPaymentProduct('success', 80_000, 2);

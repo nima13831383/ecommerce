@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tags\Tables;
 
+use App\Support\JalaliDate;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -33,7 +34,7 @@ class TagsTable
 
                 TextColumn::make('created_at')
                     ->label('ایجاد')
-                    ->dateTime('Y-m-d H:i')
+                    ->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])

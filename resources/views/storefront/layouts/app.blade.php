@@ -15,6 +15,7 @@
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/components/product-card.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/components/slider.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/homepage/header.css') }}">
+    <link rel="stylesheet" href="{{ asset('storefront/assets/css/components/header-overrides.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/homepage/hero.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/homepage/categories.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/homepage/special-products.css') }}">
@@ -29,13 +30,17 @@
 <body class="@yield('bodyClass')">
     <a class="sr-only" href="#main-content">پرش به محتوای اصلی</a>
 
-    @include('storefront.partials.header')
+    @unless (request()->routeIs('login', 'register', 'password.request', 'password.reset'))
+        @include('storefront.partials.header')
+    @endunless
 
     <main id="main-content">
         @yield('content')
     </main>
 
-    @include('storefront.partials.footer')
+    @unless (request()->routeIs('login', 'register', 'password.request', 'password.reset'))
+        @include('storefront.partials.footer')
+    @endunless
     @include('storefront.partials.icon-sprite')
 
     <script src="{{ asset('storefront/assets/vendor/jquery/jquery.min.js') }}" defer></script>

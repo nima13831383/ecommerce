@@ -1,0 +1,4 @@
+header { position: relative; }
+.cart-trigger { position: relative; }
+.header-cart-count { position: absolute; inset-inline-end: -2px; inset-block-start: -4px; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 999px; background: var(--pink); color: #fff; font-size: .62rem; line-height: 17px; text-align: center; }
+.search-submit { border: 0; background: transparent; padding: 0; min-width: 26px; min-height: 26px; cursor: pointer; }

@@ -3,14 +3,15 @@
 namespace App\Filament\Resources\InventoryReservations\Tables;
 
 use App\Enums\InventoryReservationStatus;
+use App\Filament\Forms\Components\JalaliDatePicker;
 use App\Filament\Resources\Inventory\Support\InventoryPresentation;
 use App\Filament\Resources\InventoryReservations\InventoryReservationResource;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Models\InventoryReservation;
 use App\Models\Product;
 use App\Models\ProductVariation;
+use App\Support\JalaliDate;
 use Filament\Actions\ViewAction;
-use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
@@ -37,16 +38,16 @@ class InventoryReservationsTable
                 TextColumn::make('orderItem.order.order_number')->label('سفارش مرتبط')->searchable()->url(fn (InventoryReservation $record): ?string => $record->orderItem?->order ? OrderResource::getUrl('view', ['record' => $record->orderItem->order]) : null),
                 TextColumn::make('reference_id')->label('شناسه مرجع')->searchable()->toggleable(isToggledHiddenByDefault: true),
                 IconColumn::make('anomaly')->label('هشدار')->boolean()->state(fn (InventoryReservation $record): bool => InventoryPresentation::warnings($record) !== [])->trueIcon('heroicon-o-exclamation-triangle')->trueColor('danger')->falseIcon('heroicon-o-check-circle')->falseColor('gray'),
-                TextColumn::make('expires_at')->label('تاریخ انقضا')->dateTime()->sortable(),
-                TextColumn::make('created_at')->label('تاریخ ثبت')->dateTime()->sortable(),
-                TextColumn::make('committed_at')->label('زمان قطعی‌سازی')->dateTime()->toggleable(isToggledHiddenByDefault: true),
-                TextColumn::make('released_at')->label('زمان آزادسازی')->dateTime()->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('expires_at')->label('تاریخ انقضا')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->sortable(),
+                TextColumn::make('created_at')->label('تاریخ ثبت')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->sortable(),
+                TextColumn::make('committed_at')->label('زمان قطعی‌سازی')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->toggleable(isToggledHiddenByDefault: true),
+                TextColumn::make('released_at')->label('زمان آزادسازی')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([
                 SelectFilter::make('status')->label('وضعیت')->options(self::enumOptions(InventoryReservationStatus::cases(), InventoryPresentation::reservationStatus(...))),
                 SelectFilter::make('inventory_owner_type')->label('نوع مالک')->options([Product::class => 'محصول', ProductVariation::class => 'تنوع محصول']),
                 Filter::make('past_due')->label('رزرو فعال منقضی‌شده')->query(fn (Builder $query): Builder => $query->where('status', InventoryReservationStatus::Active->value)->whereNotNull('expires_at')->where('expires_at', '<=', now())),
-                Filter::make('dates')->label('بازه زمانی')->form([DatePicker::make('from')->label('از تاریخ'), DatePicker::make('until')->label('تا تاریخ')])->query(fn (Builder $query, array $data): Builder => $query->when($data['from'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '>=', $date))->when($data['until'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '<=', $date))),
+                Filter::make('dates')->label('بازه زمانی')->form([JalaliDatePicker::make('from')->label('از تاریخ'), JalaliDatePicker::make('until')->label('تا تاریخ')])->query(fn (Builder $query, array $data): Builder => $query->when($data['from'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '>=', $date))->when($data['until'] ?? null, fn (Builder $q, string $date): Builder => $q->whereDate('created_at', '<=', $date))),
                 Filter::make('search')->label('جست‌وجوی مالک یا سفارش')->form([TextInput::make('value')->label('عبارت')])->query(fn (Builder $query, array $data): Builder => $query->when(filled($data['value'] ?? null), function (Builder $q) use ($data): Builder {
                     $term = '%'.$data['value'].'%';
 

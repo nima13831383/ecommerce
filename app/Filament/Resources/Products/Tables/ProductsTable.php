@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Products\Tables;
 
+use App\Support\JalaliDate;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
@@ -77,7 +78,7 @@ class ProductsTable
                     ->toggleable(),
 
                 TextColumn::make('created_at')
-                    ->dateTime()
+                    ->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)
                     ->sortable()
                     ->toggleable(isToggledHiddenByDefault: true),
             ])

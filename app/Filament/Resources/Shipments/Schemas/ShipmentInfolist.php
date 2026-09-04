@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Shipments\Schemas;
 use App\Filament\Resources\Orders\OrderResource;
 use App\Filament\Resources\Shipments\Support\ShipmentPresentation;
 use App\Models\Shipment;
+use App\Support\JalaliDate;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -23,9 +24,9 @@ class ShipmentInfolist
                 TextEntry::make('carrier_service')->label('خدمت پستی')->placeholder('ثبت نشده'),
                 TextEntry::make('tracking_number')->label('کد رهگیری')->placeholder('ثبت نشده')->copyable(),
                 TextEntry::make('tracking_url')->label('لینک رهگیری')->url(fn (mixed $state): ?string => filled($state) ? (string) $state : null)->placeholder('ثبت نشده'),
-                TextEntry::make('shipped_at')->label('زمان ارسال')->dateTime()->placeholder('ثبت نشده'),
-                TextEntry::make('delivered_at')->label('زمان تحویل')->dateTime()->placeholder('ثبت نشده'),
-                TextEntry::make('cancelled_at')->label('زمان لغو')->dateTime()->placeholder('ثبت نشده'),
+                TextEntry::make('shipped_at')->label('زمان ارسال')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('ثبت نشده'),
+                TextEntry::make('delivered_at')->label('زمان تحویل')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('ثبت نشده'),
+                TextEntry::make('cancelled_at')->label('زمان لغو')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null)->placeholder('ثبت نشده'),
             ]),
             Section::make('تصویر تاریخی ارسال')->columns(2)->schema([
                 TextEntry::make('shipping_address')->label('آدرس مقصد')->formatStateUsing(fn (mixed $state): string => json_encode($state, JSON_UNESCAPED_UNICODE | JSON_PRETTY_PRINT) ?: 'ثبت نشده')->prose(),
@@ -40,7 +41,7 @@ class ShipmentInfolist
                     TextEntry::make('to_status')->label('وضعیت جدید')->formatStateUsing(fn (mixed $state): string => ShipmentPresentation::status($state)),
                     TextEntry::make('user.name')->label('کاربر')->placeholder('سیستم'),
                     TextEntry::make('note')->label('یادداشت')->placeholder('—')->prose(),
-                    TextEntry::make('created_at')->label('زمان')->dateTime(),
+                    TextEntry::make('created_at')->label('زمان')->formatStateUsing(fn ($state): ?string => $state ? JalaliDate::format($state, 'Y/m/d H:i') : null),
                 ]),
             ]),
         ]);

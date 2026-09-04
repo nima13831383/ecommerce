@@ -22,13 +22,64 @@ final class SettingRegistry
                     'integer',
                     Rule::exists('tax_classes', 'id')->where(fn ($query) => $query->where('is_active', true)),
                 ],
+                nullable: true,
+                description: 'کلاس مالیاتی پیش‌فرض برای محصولاتی که کلاس جداگانه ندارند.',
             ),
-            'shipping.mode' => new SettingDefinition('shipping.mode', 'shipping', 'string', 'calculator', 'روش محاسبه هزینه ارسال', ['required', Rule::in(['calculator', 'fixed', 'free'])]),
-            'shipping.origin_province_id' => new SettingDefinition('shipping.origin_province_id', 'shipping', 'integer', null, 'استان مبدأ', ['nullable', 'integer']),
-            'shipping.origin_city_id' => new SettingDefinition('shipping.origin_city_id', 'shipping', 'integer', null, 'شهر مبدأ', ['nullable', 'integer']),
-            'shipping.fixed_rate_amount' => new SettingDefinition('shipping.fixed_rate_amount', 'shipping', 'money', 0, 'مبلغ نرخ ثابت', ['required', 'integer', 'min:0']),
-            'shipping.packages' => new SettingDefinition('shipping.packages', 'shipping', 'json', [], 'بسته‌بندی‌ها / کارتن‌ها', ['array']),
+            'shipping.mode' => new SettingDefinition(
+                key: 'shipping.mode',
+                group: 'shipping',
+                type: 'string',
+                default: 'calculator',
+                label: 'روش محاسبه هزینه ارسال',
+                rules: ['required', Rule::in(['calculator', 'fixed', 'free'])],
+                description: 'حالت محاسبه هزینه ارسال فروشگاه.',
+                options: ['calculator' => 'محاسبه‌گر اصلی', 'fixed' => 'نرخ ثابت', 'free' => 'ارسال رایگان'],
+            ),
+            'shipping.origin_province_id' => new SettingDefinition(
+                key: 'shipping.origin_province_id',
+                group: 'shipping',
+                type: 'integer',
+                default: null,
+                label: 'استان مبدأ',
+                rules: ['nullable', 'integer'],
+                nullable: true,
+                description: 'استان مبدأ واحد و سراسری فروشگاه.',
+            ),
+            'shipping.origin_city_id' => new SettingDefinition(
+                key: 'shipping.origin_city_id',
+                group: 'shipping',
+                type: 'integer',
+                default: null,
+                label: 'شهر مبدأ',
+                rules: ['nullable', 'integer'],
+                nullable: true,
+                description: 'شهر مبدأ واحد و سراسری فروشگاه.',
+            ),
+            'shipping.fixed_rate_amount' => new SettingDefinition(
+                key: 'shipping.fixed_rate_amount',
+                group: 'shipping',
+                type: 'money',
+                default: 0,
+                label: 'مبلغ نرخ ثابت',
+                rules: ['required', 'integer', 'min:0'],
+                description: 'مبلغ ثابت ارسال به ریال.',
+            ),
+            'shipping.packages' => new SettingDefinition(
+                key: 'shipping.packages',
+                group: 'shipping',
+                type: 'json',
+                default: [],
+                label: 'بسته‌بندی‌ها / کارتن‌ها',
+                rules: ['array'],
+                description: 'بسته‌بندی‌های فعال مورد استفاده محاسبه‌گر ارسال.',
+            ),
         ];
+    }
+
+    /** @return array<string, SettingDefinition> */
+    public static function coreDefinitions(): array
+    {
+        return array_filter(self::definitions(), static fn (SettingDefinition $definition): bool => $definition->core);
     }
 
     public static function has(string $key): bool
