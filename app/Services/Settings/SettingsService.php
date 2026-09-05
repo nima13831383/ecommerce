@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Services\Payments\PaymentGatewayConfiguration;
 use App\Services\Shipping\Data\WordpressShippingDataLoader;
 use App\Services\Shipping\ShippingOptionCatalog;
+use App\Services\Sms\SmsGatewayConfiguration;
 use App\Settings\SettingDefinition;
 use App\Settings\SettingRegistry;
 use Illuminate\Contracts\Encryption\DecryptException;
@@ -118,7 +119,7 @@ class SettingsService
     }
 
     /**
-     * @return array{registered: int, persisted: int, missing: array<int, string>, unknown: array<int, array{group: string, key: string}>, needs_configuration: array<int, string>, payment: array{default_gateway: string, enabled: bool, sandbox: bool, merchant_configured: bool, merchant_valid: bool, operational: bool}}
+     * @return array{registered: int, persisted: int, missing: array<int, string>, unknown: array<int, array{group: string, key: string}>, needs_configuration: array<int, string>, payment: array{default_gateway: string, enabled: bool, sandbox: bool, merchant_configured: bool, merchant_valid: bool, operational: bool}, sms: array{provider: string, enabled: bool, sandbox: bool, api_key_configured: bool, template_id: int|null, auth_mode: string, operational: bool}}
      */
     public function status(): array
     {
@@ -169,6 +170,12 @@ class SettingsService
             }
         }
 
+        $authMode = $this->get('auth.customer_auth_mode');
+        $smsConfiguration = app(SmsGatewayConfiguration::class);
+        if ($authMode === 'sms_otp' && ! $smsConfiguration->operational()) {
+            $needsConfiguration[] = 'sms.customer_authentication';
+        }
+
         $merchantId = $this->get('payment.zarinpal.merchant_id');
         $payment = [
             'default_gateway' => $this->get('payment.default_gateway') ?? 'not configured',
@@ -178,6 +185,16 @@ class SettingsService
             'merchant_valid' => PaymentGatewayConfiguration::validMerchantId($merchantId),
             'operational' => app(PaymentGatewayConfiguration::class)->zarinPal() !== null,
         ];
+        $sandbox = $this->get('sms.smsir.sandbox') === true;
+        $sms = [
+            'provider' => $this->get('sms.default_provider') ?? 'not configured',
+            'enabled' => $this->get('sms.smsir.enabled') === true,
+            'sandbox' => $sandbox,
+            'api_key_configured' => filled($this->get('sms.smsir.api_key')),
+            'template_id' => $sandbox ? SmsGatewayConfiguration::SANDBOX_TEMPLATE_ID : $this->get('sms.smsir.verify_template_id'),
+            'auth_mode' => $authMode,
+            'operational' => $smsConfiguration->operational(),
+        ];
 
         return [
             'registered' => count($definitions),
@@ -186,6 +203,7 @@ class SettingsService
             'unknown' => $unknown,
             'needs_configuration' => $needsConfiguration,
             'payment' => $payment,
+            'sms' => $sms,
         ];
     }
 
@@ -214,6 +232,7 @@ class SettingsService
         }
 
         $this->assertShippingSetting($definition->key, $normalized);
+        $this->assertSmsSetting($definition->key, $normalized);
 
         return $normalized;
     }
@@ -309,6 +328,45 @@ class SettingsService
 
         if (! PaymentGatewayConfiguration::validMerchantId($merchantId)) {
             throw ValidationException::withMessages(['value' => 'برای فعال‌سازی زرین‌پال، مرچنت آیدی معتبر لازم است.']);
+        }
+    }
+
+    private function assertSmsSetting(string $key, mixed $value): void
+    {
+        if (! str_starts_with($key, 'sms.') && $key !== 'auth.customer_auth_mode') {
+            return;
+        }
+
+        if ($key === 'sms.smsir.sandbox' && $value === true && app()->isProduction()) {
+            throw ValidationException::withMessages(['value' => 'حالت Sandbox پیامک در محیط تولید مجاز نیست.']);
+        }
+
+        $mode = $key === 'auth.customer_auth_mode' ? $value : $this->get('auth.customer_auth_mode');
+        if ($mode !== 'sms_otp') {
+            return;
+        }
+
+        $provider = $key === 'sms.default_provider' ? $value : $this->get('sms.default_provider');
+        $enabled = $key === 'sms.smsir.enabled' ? $value : $this->get('sms.smsir.enabled');
+        $sandbox = $key === 'sms.smsir.sandbox' ? $value : $this->get('sms.smsir.sandbox');
+        $apiKey = $key === 'sms.smsir.api_key' ? $value : $this->get('sms.smsir.api_key');
+        $templateId = $key === 'sms.smsir.verify_template_id' ? $value : $this->get('sms.smsir.verify_template_id');
+        $parameter = $key === 'sms.smsir.verify_parameter_name' ? $value : $this->get('sms.smsir.verify_parameter_name');
+
+        if ($provider !== 'smsir' || $enabled !== true || ! is_string($apiKey) || blank($apiKey)) {
+            throw ValidationException::withMessages(['value' => 'برای فعال‌سازی ورود پیامکی، SMS.ir باید با API Key معتبر فعال باشد.']);
+        }
+
+        if ($sandbox === true) {
+            if (app()->isProduction()) {
+                throw ValidationException::withMessages(['value' => 'ورود پیامکی Sandbox در محیط تولید مجاز نیست.']);
+            }
+
+            return;
+        }
+
+        if (! is_int($templateId) || $templateId < 1 || ! is_string($parameter) || ! preg_match('/^[A-Za-z][A-Za-z0-9_]{0,31}$/', $parameter)) {
+            throw ValidationException::withMessages(['value' => 'قالب Verify و نام پارامتر تولید برای ورود پیامکی لازم است.']);
         }
     }
 }

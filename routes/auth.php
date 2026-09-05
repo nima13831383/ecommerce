@@ -8,6 +8,7 @@ use App\Http\Controllers\Auth\NewPasswordController;
 use App\Http\Controllers\Auth\PasswordController;
 use App\Http\Controllers\Auth\PasswordResetLinkController;
 use App\Http\Controllers\Auth\RegisteredUserController;
+use App\Http\Controllers\Auth\SmsOtpAuthController;
 use App\Http\Controllers\Auth\VerifyEmailController;
 use Illuminate\Support\Facades\Route;
 
@@ -16,11 +17,18 @@ Route::middleware('guest')->group(function () {
         ->name('register');
 
     Route::post('register', [RegisteredUserController::class, 'store']);
+    Route::post('register/otp', [SmsOtpAuthController::class, 'requestRegistration'])->name('register.otp.request');
+    Route::post('register/otp/verify', [SmsOtpAuthController::class, 'verifyRegistration'])->name('register.otp.verify');
+    Route::post('register/otp/resend', [SmsOtpAuthController::class, 'resendRegistration'])->name('register.otp.resend');
 
     Route::get('login', [AuthenticatedSessionController::class, 'create'])
         ->name('login');
 
     Route::post('login', [AuthenticatedSessionController::class, 'store']);
+    Route::post('login/otp', [SmsOtpAuthController::class, 'requestLogin'])->name('login.otp.request');
+    Route::post('login/otp/verify', [SmsOtpAuthController::class, 'verifyLogin'])->name('login.otp.verify');
+    Route::post('login/otp/resend', [SmsOtpAuthController::class, 'resendLogin'])->name('login.otp.resend');
+    Route::post('login/otp/change-mobile', [SmsOtpAuthController::class, 'changeLoginMobile'])->name('login.otp.changeMobile');
 
     Route::get('forgot-password', [PasswordResetLinkController::class, 'create'])
         ->name('password.request');

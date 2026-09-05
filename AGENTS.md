@@ -925,6 +925,16 @@ Production payment configuration must fail closed whenever its selected gateway 
 
 Do not manually insert operator settings rows as a permanent workflow. Use the registry migration or `settings:sync`; migrations are additive and non-destructive. Isolated fresh test databases must finish migrations with all registered core rows present. The normal development database `ecommerce` must never be reset or destructively reconstructed to test settings.
 
+### Customer Authentication and SMS Providers
+
+Customer authentication strategy is a registry-backed Core Site Setting. The supported storefront strategies are Email + Password and Mobile + SMS OTP. Changing the active mode changes only the current authentication path: it must never delete users, fabricate email/password credentials, rewrite existing mobile credentials, or otherwise mutate an account automatically.
+
+OTP challenges are server-authoritative, purpose-bound, hashed, short-lived, attempt-limited, resend-limited, and single-use. Plaintext OTP values and SMS credentials must never be persisted, logged, rendered outside the strictly local/testing Sandbox helper, or exposed through diagnostics. Mobile numbers use the project’s canonical normalized Iranian `09XXXXXXXXX` representation; input normalization happens at the boundary before comparison or storage. A permanent SMS customer account is created only after its registration OTP is successfully verified, and every successful login/registration regenerates the Laravel session.
+
+SMS provider runtime configuration belongs in Core Site Settings. Provider API credentials are encrypted secret settings, masked in Filament, and may only be decrypted by the project-owned runtime adapter. SMS.ir is the current provider and the official `ipe/smsir-php` SDK must remain behind the project provider boundary; controllers and Blade must never call the SDK or its environment-bound Facade directly. Future providers implement the same application sender contract.
+
+SMS.ir Sandbox uses the official shared API URL and a Sandbox-specific API key. Its Verify contract is fixed to template `123456` and parameter `CODE`; production template settings remain inactive while Sandbox is selected. Sandbox OTP authentication must fail closed in production. A local/testing deterministic Sandbox code is strictly limited to local/testing, never configurable via settings, and never permitted in production.
+
 ---
 
 # Blog

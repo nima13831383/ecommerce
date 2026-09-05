@@ -33,6 +33,16 @@ class SettingForm
                 ->visible(fn (Get $get): bool => $get('key') === 'payment.default_gateway')
                 ->nullable()
                 ->helperText('برای فعال‌سازی پرداخت، زرین‌پال را انتخاب کنید.'),
+            Select::make('value_string')
+                ->label('روش ورود و ثبت‌نام')
+                ->options(SettingRegistry::get('auth.customer_auth_mode')->options)
+                ->visible(fn (Get $get): bool => $get('key') === 'auth.customer_auth_mode')
+                ->required(fn (Get $get): bool => $get('key') === 'auth.customer_auth_mode'),
+            Select::make('value_string')
+                ->label('سرویس پیامکی')
+                ->options(SettingRegistry::get('sms.default_provider')->options)
+                ->visible(fn (Get $get): bool => $get('key') === 'sms.default_provider')
+                ->required(fn (Get $get): bool => $get('key') === 'sms.default_provider'),
             Toggle::make('value_boolean')
                 ->label('فعال بودن زرین‌پال')
                 ->visible(fn (Get $get): bool => $get('key') === 'payment.zarinpal.enabled')
@@ -41,6 +51,13 @@ class SettingForm
                 ->label('حالت آزمایشی زرین‌پال')
                 ->visible(fn (Get $get): bool => $get('key') === 'payment.zarinpal.sandbox')
                 ->helperText('فقط برای محیط توسعه/آزمایش؛ در محیط تولید پذیرفته نمی‌شود.'),
+            Toggle::make('value_boolean')
+                ->label('فعال بودن SMS.ir')
+                ->visible(fn (Get $get): bool => $get('key') === 'sms.smsir.enabled'),
+            Toggle::make('value_boolean')
+                ->label('حالت Sandbox SMS.ir')
+                ->visible(fn (Get $get): bool => $get('key') === 'sms.smsir.sandbox')
+                ->helperText('در Sandbox از قالب ثابت با شناسه ۱۲۳۴۵۶ و پارامتر CODE استفاده می‌شود؛ فقط برای توسعه/آزمایش.'),
             TextInput::make('value_secret')
                 ->label('مرچنت آیدی زرین‌پال')
                 ->password()
@@ -50,6 +67,16 @@ class SettingForm
                     ? 'اعتبارنامه تنظیم شده است؛ خالی گذاشتن این فیلد مقدار فعلی را حفظ می‌کند.'
                     : 'مرچنت آیدی معتبر زرین‌پال را وارد کنید.')
                 ->rule('uuid')
+                ->dehydrated(fn ($state): bool => filled($state))
+                ->nullable(),
+            TextInput::make('value_secret')
+                ->label('API Key SMS.ir')
+                ->password()
+                ->revealable()
+                ->visible(fn (Get $get): bool => $get('key') === 'sms.smsir.api_key')
+                ->helperText(fn (): string => app(SettingsService::class)->get('sms.smsir.api_key') !== null
+                    ? 'اعتبارنامه تنظیم شده است؛ خالی گذاشتن این فیلد مقدار فعلی را حفظ می‌کند.'
+                    : 'در Sandbox از API Key مخصوص Sandbox و در تولید از API Key تولید استفاده کنید.')
                 ->dehydrated(fn ($state): bool => filled($state))
                 ->nullable(),
             Select::make('value_number')
@@ -95,6 +122,33 @@ class SettingForm
                 ->maxValue(100)
                 ->required()
                 ->helperText('عدد صحیح بین ۱ تا ۱۰۰.'),
+            TextInput::make('value_number')
+                ->label(fn (Get $get): string => match ($get('key')) {
+                    'auth.otp.code_length' => 'طول کد تأیید',
+                    'auth.otp.ttl_seconds' => 'اعتبار کد تأیید (ثانیه)',
+                    'auth.otp.resend_cooldown_seconds' => 'فاصله ارسال مجدد (ثانیه)',
+                    'auth.otp.max_attempts' => 'حداکثر تلاش مجاز',
+                    'sms.smsir.verify_template_id' => 'شناسه قالب Verify تولید',
+                    default => 'عدد صحیح',
+                })
+                ->visible(fn (Get $get): bool => in_array($get('key'), [
+                    'auth.otp.code_length',
+                    'auth.otp.ttl_seconds',
+                    'auth.otp.resend_cooldown_seconds',
+                    'auth.otp.max_attempts',
+                    'sms.smsir.verify_template_id',
+                ], true))
+                ->numeric()
+                ->integer()
+                ->nullable()
+                ->helperText(fn (Get $get): ?string => $get('key') === 'sms.smsir.verify_template_id'
+                    ? 'در حالت Sandbox این مقدار ذخیره می‌شود اما غیرفعال است.'
+                    : null),
+            TextInput::make('value_string')
+                ->label('نام پارامتر کد Verify')
+                ->visible(fn (Get $get): bool => $get('key') === 'sms.smsir.verify_parameter_name')
+                ->required(fn (Get $get): bool => $get('key') === 'sms.smsir.verify_parameter_name')
+                ->helperText('در Sandbox پارامتر CODE به‌صورت ثابت استفاده می‌شود.'),
             Textarea::make('value_json')
                 ->label('بسته‌بندی‌ها / کارتن‌ها (JSON)')
                 ->visible(fn (Get $get): bool => $get('key') === 'shipping.packages')

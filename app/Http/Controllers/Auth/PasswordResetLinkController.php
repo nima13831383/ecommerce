@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
+use App\Services\Settings\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
@@ -14,8 +15,12 @@ class PasswordResetLinkController extends Controller
     /**
      * Display the password reset link request view.
      */
-    public function create(): View
+    public function create(SettingsService $settings): View|RedirectResponse
     {
+        if ($settings->get('auth.customer_auth_mode') === 'sms_otp') {
+            return redirect()->route('login');
+        }
+
         return view('auth.forgot-password');
     }
 

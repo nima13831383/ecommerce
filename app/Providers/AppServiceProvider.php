@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Contracts\Sms\OtpSenderInterface;
 use App\Events\CustomerLifecycle\OrderCancelled;
 use App\Events\CustomerLifecycle\OrderPlaced;
 use App\Events\CustomerLifecycle\PaymentSucceeded;
@@ -15,6 +16,7 @@ use App\Services\Payments\PaymentGatewayConfiguration;
 use App\Services\Payments\PaymentGatewayRegistry;
 use App\Services\Payments\ZarinPalPaymentGateway;
 use App\Services\Payments\ZarinPalSdkClient;
+use App\Services\Sms\SmsIrOtpSender;
 use App\Services\Storefront\StorefrontCartContext;
 use App\Support\DatabaseSafetyGuard;
 use Illuminate\Console\Events\CommandStarting;
@@ -30,6 +32,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->bind(OtpSenderInterface::class, SmsIrOtpSender::class);
         $this->app->bind(PaymentGatewayRegistry::class, function (): PaymentGatewayRegistry {
             $gateways = [];
 

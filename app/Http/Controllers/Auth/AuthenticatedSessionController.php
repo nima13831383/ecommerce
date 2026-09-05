@@ -4,6 +4,9 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
+use App\Models\AuthOtpChallenge;
+use App\Services\Auth\CustomerOtpService;
+use App\Services\Settings\SettingsService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -14,9 +17,24 @@ class AuthenticatedSessionController extends Controller
     /**
      * Display the login view.
      */
-    public function create(): View
+    public function create(Request $request, SettingsService $settings, CustomerOtpService $otp): View
     {
-        return view('auth.login');
+        $customerAuthMode = $settings->get('auth.customer_auth_mode');
+        $resendState = null;
+
+        if ($customerAuthMode === 'sms_otp') {
+            $resendState = $otp->resendState(
+                $request->session()->get('auth.otp.login_challenge_id'),
+                $request->session()->get('auth.otp.login_mobile'),
+                AuthOtpChallenge::PURPOSE_LOGIN,
+            );
+
+            if ($request->session()->has('auth.otp.login_mobile') && $resendState === null) {
+                $request->session()->forget(['auth.otp.login_mobile', 'auth.otp.login_challenge_id']);
+            }
+        }
+
+        return view('auth.login', compact('customerAuthMode', 'resendState'));
     }
 
     /**
@@ -24,6 +42,10 @@ class AuthenticatedSessionController extends Controller
      */
     public function store(LoginRequest $request): RedirectResponse
     {
+        if (app(SettingsService::class)->get('auth.customer_auth_mode') !== 'email_password') {
+            abort(404);
+        }
+
         $request->authenticate();
 
         $request->session()->regenerate();

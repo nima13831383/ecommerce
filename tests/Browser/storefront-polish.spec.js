@@ -40,10 +40,14 @@ test('desktop storefront preserves the shared header, archive pagination, auth s
     await page.goto('/login');
     await expect(page.locator('header')).toBeVisible();
     await expect(page.locator('#footer')).toHaveCount(0);
-    await expect(page.locator('.password-toggle svg use')).toHaveAttribute('href', '#i-eye');
+    if (await page.locator('#mobile').count()) {
+        await expect(page.locator('#mobile')).toBeVisible();
+    } else {
+        await expect(page.locator('.password-toggle svg use')).toHaveAttribute('href', '#i-eye');
+        await page.locator('[data-password-toggle]').click();
+        await expect(page.locator('#password')).toHaveAttribute('type', 'text');
+    }
     await expect(page.locator('.auth-trust')).toHaveCount(0);
-    await page.locator('[data-password-toggle]').click();
-    await expect(page.locator('#password')).toHaveAttribute('type', 'text');
     await expect(page.locator('.auth-card')).toBeVisible();
     expect(await page.locator('body').evaluate((body) => body.scrollWidth <= window.innerWidth)).toBeTruthy();
 
@@ -95,10 +99,14 @@ test('auth pages retain the shared header and form spacing without a trust secti
     await expect(page.locator('.auth-form')).toBeVisible();
     await expect(page.locator('.auth-trust')).toHaveCount(0);
     await expect(page.locator('#footer')).toHaveCount(0);
-    await expect(page.locator('.password-toggle svg use')).toHaveAttribute('href', '#i-eye');
-
-    await page.locator('[data-password-toggle]').click();
-    await expect(page.locator('#password')).toHaveAttribute('type', 'text');
+    if (await page.locator('#mobile').count()) {
+        await expect(page.locator('#mobile')).toBeVisible();
+        await expect(page.locator('[data-password-toggle]')).toHaveCount(0);
+    } else {
+        await expect(page.locator('.password-toggle svg use')).toHaveAttribute('href', '#i-eye');
+        await page.locator('[data-password-toggle]').click();
+        await expect(page.locator('#password')).toHaveAttribute('type', 'text');
+    }
 
     const headerBottom = await page.locator('header').evaluate((header) => header.getBoundingClientRect().bottom);
     const cardTop = await page.locator('.auth-card').evaluate((card) => card.getBoundingClientRect().top);

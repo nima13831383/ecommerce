@@ -28,6 +28,12 @@ class SiteSettingsStatus extends Command
         $this->line('Payment ZarinPal sandbox: '.($status['payment']['sandbox'] ? 'yes' : 'no'));
         $this->line('Payment ZarinPal merchant: '.($status['payment']['merchant_configured'] ? 'configured' : 'not configured'));
         $this->line('Payment ZarinPal operational: '.($status['payment']['operational'] ? 'yes' : 'no'));
+        $this->line('Customer auth mode: '.$status['sms']['auth_mode']);
+        $this->line('SMS provider: '.$status['sms']['provider']);
+        $this->line('SMS.ir enabled: '.($status['sms']['enabled'] ? 'yes' : 'no'));
+        $this->line('SMS.ir sandbox: '.($status['sms']['sandbox'] ? 'yes' : 'no'));
+        $this->line('SMS.ir API key: '.($status['sms']['api_key_configured'] ? 'configured' : 'not configured'));
+        $this->line('SMS.ir operational: '.($status['sms']['operational'] ? 'yes' : 'no'));
 
         return self::SUCCESS;
     }

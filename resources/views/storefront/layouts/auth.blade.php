@@ -13,6 +13,7 @@
 @push('head')
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/auth/layout.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/auth/forms.css') }}">
+    <link rel="stylesheet" href="{{ asset('storefront/assets/css/auth/otp-resend.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/auth/auth-card.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/auth/responsive.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/auth/parity.css') }}">
@@ -21,4 +22,5 @@
 @push('scripts')
     <script src="{{ asset('storefront/assets/js/auth/password-toggle.js') }}" defer></script>
     <script src="{{ asset('storefront/assets/js/auth/auth-validation.js') }}" defer></script>
+    <script src="{{ asset('storefront/assets/js/auth/otp-resend-countdown.js') }}" defer></script>
 @endpush

@@ -1,0 +1,69 @@
+.otp-resend {
+  margin-top: 18px;
+  text-align: center;
+}
+
+.otp-resend form,
+.otp-change-mobile {
+  margin: 0;
+}
+
+.otp-resend__button,
+.otp-change-mobile button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 40px;
+  padding: 7px 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: #d9526a;
+  font: inherit;
+  font-size: .7rem;
+  font-weight: 700;
+  line-height: 1.6;
+  cursor: pointer;
+  transition: color .18s ease, background .18s ease, box-shadow .18s ease;
+}
+
+.otp-resend__button:hover:not(:disabled),
+.otp-change-mobile button:hover {
+  color: #be4d62;
+  background: #fff1f3;
+}
+
+.otp-resend__button:focus-visible,
+.otp-change-mobile button:focus-visible {
+  outline: 0;
+  box-shadow: 0 0 0 3px rgba(231, 102, 123, .22);
+}
+
+.otp-resend__button:disabled {
+  color: #948b8d;
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.otp-change-mobile {
+  margin-top: 4px;
+  text-align: center;
+}
+
+.otp-change-mobile button {
+  min-height: 36px;
+  color: #746d6d;
+  font-size: .66rem;
+  font-weight: 600;
+}
+
+.otp-change-mobile button:hover {
+  color: #d9526a;
+}
+
+@media (max-width: 350px) {
+  .otp-resend__button,
+  .otp-change-mobile button {
+    font-size: .65rem;
+  }
+}

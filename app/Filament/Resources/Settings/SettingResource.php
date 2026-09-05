@@ -62,6 +62,8 @@ class SettingResource extends Resource
                         'shipping' => 'ارسال',
                         'tax' => 'مالیات',
                         'payment' => 'پرداخت',
+                        'auth' => 'احراز هویت',
+                        'sms' => 'پیامک',
                         default => $state,
                     }),
                 TextColumn::make('key')->label('کلید داخلی')->searchable()->copyable(),

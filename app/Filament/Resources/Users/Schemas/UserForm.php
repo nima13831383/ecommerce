@@ -19,8 +19,8 @@ class UserForm
             TextInput::make('email')
                 ->label('ایمیل')
                 ->email()
-                ->required()
                 ->maxLength(255)
+                ->nullable()
                 ->rule(fn (?User $record) => Rule::unique('users', 'email')->ignore($record?->getKey())),
             TextInput::make('mobile')
                 ->label('شماره تماس')
