@@ -25,7 +25,7 @@
                         <div class="order-card__grid">
                             <div><span class="order-card__label">شماره سفارش</span><strong>#{{ $order['order_number'] }}</strong></div>
                             <div><span class="order-card__label">تاریخ</span><strong>{{ \App\Support\JalaliDate::format($order['created_at'], 'j F Y') }}</strong></div>
-                            <div><span class="order-card__label">مبلغ</span><strong class="order-card__amount">{{ number_format($order['grand_total']) }} ریال</strong></div>
+                            <div><span class="order-card__label">مبلغ</span><strong class="order-card__amount">{{ \App\Support\PersianNumber::money($order['grand_total']) }}</strong></div>
                             <div><span class="order-card__label">وضعیت</span><span class="status-badge status-badge--{{ in_array($order['status']['value'], ['cancelled', 'failed'], true) ? 'danger' : ($order['status']['value'] === 'delivered' ? 'success' : 'info') }}">{{ $order['status']['label'] }}</span></div>
                             <a class="order-card__action" href="{{ route('storefront.account.orders.show', ['order' => $order['order_number']]) }}">مشاهده جزئیات</a>
                         </div>

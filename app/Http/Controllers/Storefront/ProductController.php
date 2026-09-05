@@ -10,20 +10,24 @@ use App\Models\Brand;
 use App\Models\Category;
 use App\Models\Product;
 use App\Services\Catalog\ProductCatalogQuery;
+use App\Services\Settings\SettingsService;
 use Illuminate\Contracts\View\View;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 class ProductController extends Controller
 {
-    public function __construct(private readonly ProductCatalogQuery $catalog) {}
+    public function __construct(
+        private readonly ProductCatalogQuery $catalog,
+        private readonly SettingsService $settings,
+    ) {}
 
     public function index(ProductIndexRequest $request): View|JsonResponse
     {
-        $paginator = $this->catalog->paginate(array_merge(
-            ['per_page' => 24],
-            $request->filters(),
-        ));
+        $paginator = $this->catalog->paginate([
+            ...$request->filters(),
+            'per_page' => $this->settings->get('catalog.products_per_page'),
+        ]);
         $paginator->withQueryString();
 
         if ($request->boolean('ajax')) {

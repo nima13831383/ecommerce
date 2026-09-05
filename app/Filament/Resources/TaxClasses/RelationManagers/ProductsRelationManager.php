@@ -4,6 +4,7 @@ namespace App\Filament\Resources\TaxClasses\RelationManagers;
 
 use App\Models\Product;
 use App\Services\Tax\TaxCalculator;
+use App\Support\PersianNumber;
 use Filament\Actions\AssociateAction;
 use Filament\Actions\BulkAction;
 use Filament\Actions\BulkActionGroup;
@@ -61,7 +62,7 @@ class ProductsRelationManager extends RelationManager
 
                         $amount = app(TaxCalculator::class)->calculateTax((int) $record->price, $taxClass);
 
-                        return number_format($amount).' ریال';
+                        return PersianNumber::money($amount);
                     })
                     ->badge()
                     ->color('warning'),

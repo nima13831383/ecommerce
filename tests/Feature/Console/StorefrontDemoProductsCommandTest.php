@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\InventoryOperation;
+use App\Models\Category;
 use App\Models\InventoryReservation;
 use App\Models\InventoryTransaction;
 use App\Models\Product;
@@ -18,7 +19,7 @@ beforeEach(function (): void {
 test('the storefront demo command creates a complete idempotent catalog', function (): void {
     $this->artisan('demo:storefront-products')->assertExitCode(Command::SUCCESS);
 
-    expect(Product::query()->whereIn('sku', demoProductSkus())->count())->toBe(6)
+    expect(Product::query()->whereIn('sku', demoProductSkus())->count())->toBe(16)
         ->and(Product::query()->where('sku', 'DEMO-HIDDEN-001')->value('status'))->toBe('draft')
         ->and(InventoryReservation::query()->count())->toBe(0);
 
@@ -65,7 +66,12 @@ test('the storefront demo command creates a complete idempotent catalog', functi
         ->and(ProductImage::query()->where('product_id', $perfume->id)->where('is_primary', true)->count())->toBe(1)
         ->and(Storage::disk(ProductImage::storageDisk())->exists('storefront-demo/demo-aurora-velvet-perfume/primary.svg'))->toBeTrue();
 
-    expect(InventoryTransaction::query()->where('operation', InventoryOperation::OpeningStock)->count())->toBe(15);
+    expect(InventoryTransaction::query()->where('operation', InventoryOperation::OpeningStock)->count())->toBe(35);
+
+    expect(Product::query()->whereIn('sku', additionalDemoProductSkus())->where('status', 'published')->count())->toBe(10)
+        ->and(Product::query()->whereIn('sku', additionalDemoProductSkus())->where('type', 'variable')->count())->toBe(5)
+        ->and(Product::query()->whereIn('sku', additionalDemoProductSkus())->where('type', 'simple')->count())->toBe(5)
+        ->and(Product::query()->where('sku', 'DEMO-SUNSCREEN-001')->value('stock_quantity'))->toBe(0);
 });
 
 test('the storefront demo command uses the canonical resolver and does not duplicate on rerun', function (): void {
@@ -99,9 +105,9 @@ test('the storefront demo command uses the canonical resolver and does not dupli
     ])->toBe($before);
 
     $response = $this->get('/')->assertOk();
-    $response->assertSee('Aurora Velvet')->assertSee('Luna')->assertDontSee('محصول مخفی تستی');
+    $response->assertSee('سرم مو ابریشمین')->assertSee('کرم آبرسان ابریشم')->assertDontSee('محصول مخفی تستی');
 
-    $this->get('/products')->assertOk()->assertSee('Aurora Velvet')->assertDontSee('محصول مخفی تستی');
+    $this->get('/products')->assertOk()->assertSee('سرم مو ابریشمین')->assertDontSee('محصول مخفی تستی');
     $this->get('/products/demo-aurora-velvet-perfume')->assertOk()->assertSee('30 میلی‌لیتر')->assertSee('استاندارد');
     $this->get('/products/demo-luna-steel-bracelet')->assertOk()->assertSee('طلایی')->assertSee('Large');
 
@@ -120,6 +126,74 @@ test('the storefront demo command uses the canonical resolver and does not dupli
     ])->assertOk()->assertJsonPath('data.sku', 'DEMO-PERFUME-50-GIFT')->assertJsonPath('data.availability.in_stock', false);
 });
 
+test('rerunning the demo command preserves inventory changed after bootstrap', function (): void {
+    $this->artisan('demo:storefront-products')->assertExitCode(Command::SUCCESS);
+
+    $inventory = app(InventoryService::class);
+    $simple = Product::query()->where('sku', 'DEMO-MASCARA-001')->firstOrFail();
+    $variation = Product::query()->where('sku', 'DEMO-PERFUME-002')->firstOrFail()
+        ->variations()->where('sku', 'DEMO-PERFUME-002-30-STANDARD')->firstOrFail();
+
+    $inventory->adjust($simple, -1, InventoryOperation::ManualAdjustment, reason: 'demo inventory preservation test');
+    $inventory->adjust($variation, -1, InventoryOperation::ManualAdjustment, reason: 'demo variation preservation test');
+    $simpleStock = $simple->fresh()->stock_quantity;
+    $variationStock = $variation->fresh()->stock_quantity;
+    $transactionCount = InventoryTransaction::query()->count();
+
+    $this->artisan('demo:storefront-products')->assertExitCode(Command::SUCCESS);
+
+    expect($simple->fresh()->stock_quantity)->toBe($simpleStock)
+        ->and($variation->fresh()->stock_quantity)->toBe($variationStock)
+        ->and(InventoryTransaction::query()->count())->toBe($transactionCount)
+        ->and(Product::query()->whereIn('sku', demoProductSkus())->count())->toBe(16);
+});
+
+test('expanded demo products cover combinations, sales, stock states, shipping data, and media', function (): void {
+    $this->artisan('demo:storefront-products')->assertExitCode(Command::SUCCESS);
+
+    $expectedVariations = [
+        'DEMO-PERFUME-002' => 6,
+        'DEMO-BRACELET-002' => 4,
+        'DEMO-LIPSTICK-002' => 4,
+        'DEMO-MAKEUP-BAG-001' => 3,
+        'DEMO-BODY-MIST-001' => 3,
+    ];
+
+    foreach ($expectedVariations as $sku => $count) {
+        $product = Product::query()->where('sku', $sku)->firstOrFail();
+
+        expect($product->variations()->count())->toBe($count)
+            ->and($product->variations()->pluck('combination_signature')->unique())->toHaveCount($count)
+            ->and($product->weight)->toBeGreaterThan(0)
+            ->and($product->volume)->toBeGreaterThan(0)
+            ->and(ProductImage::query()->where('product_id', $product->id)->where('is_primary', true)->count())->toBe(1);
+    }
+
+    foreach (['DEMO-NECKLACE-001', 'DEMO-MASCARA-001', 'DEMO-CREAM-001', 'DEMO-SUNSCREEN-001', 'DEMO-HAIR-SERUM-001'] as $sku) {
+        $product = Product::query()->where('sku', $sku)->firstOrFail();
+
+        expect($product->weight)->toBeGreaterThan(0)
+            ->and($product->volume)->toBeGreaterThan(0)
+            ->and(ProductImage::query()->where('product_id', $product->id)->where('is_primary', true)->count())->toBe(1);
+    }
+
+    expect(Product::query()->whereIn('sku', ['DEMO-NECKLACE-001', 'DEMO-CREAM-001', 'DEMO-SUNSCREEN-001', 'DEMO-HAIR-SERUM-001'])->get()->every(fn (Product $product): bool => $product->sale_price < $product->price))->toBeTrue()
+        ->and(Product::query()->where('sku', 'DEMO-SUNSCREEN-001')->value('stock_quantity'))->toBe(0)
+        ->and(Product::query()->where('sku', 'DEMO-MASCARA-001')->value('stock_quantity'))->toBe(2)
+        ->and(Product::query()->where('sku', 'DEMO-PERFUME-002')->firstOrFail()->variations()->where('stock_quantity', 0)->count())->toBe(1)
+        ->and(Category::query()->whereIn('slug', ['jewelry', 'haircare'])->count())->toBe(2)
+        ->and(Category::query()->whereIn('slug', ['jewelry', 'haircare'])->select('slug')->distinct()->count())->toBe(2);
+
+    foreach (Product::query()->whereIn('sku', additionalDemoProductSkus())->get() as $product) {
+        expect(ProductImage::query()->where('product_id', $product->id)->where('is_primary', true)->exists())->toBeTrue()
+            ->and(Storage::disk(ProductImage::storageDisk())->exists($product->images()->where('is_primary', true)->value('path')))->toBeTrue();
+    }
+
+    $this->get('/products?search=گردنبند')->assertOk()->assertSee('گردنبند استیل آفتاب');
+    $this->get('/products?search=ریمل')->assertOk()->assertSee('ریمل حجم‌دهنده سایه');
+    $this->get('/products?search=مو')->assertOk()->assertSee('سرم مو ابریشمین');
+});
+
 function demoProductSkus(): array
 {
     return [
@@ -129,5 +203,22 @@ function demoProductSkus(): array
         'DEMO-LIPSTICK-001',
         'DEMO-POCKET-PERFUME-001',
         'DEMO-HIDDEN-001',
+        ...additionalDemoProductSkus(),
+    ];
+}
+
+function additionalDemoProductSkus(): array
+{
+    return [
+        'DEMO-PERFUME-002',
+        'DEMO-BRACELET-002',
+        'DEMO-NECKLACE-001',
+        'DEMO-LIPSTICK-002',
+        'DEMO-MASCARA-001',
+        'DEMO-CREAM-001',
+        'DEMO-SUNSCREEN-001',
+        'DEMO-MAKEUP-BAG-001',
+        'DEMO-HAIR-SERUM-001',
+        'DEMO-BODY-MIST-001',
     ];
 }

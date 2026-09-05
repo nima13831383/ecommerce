@@ -30,15 +30,13 @@
 <body class="@yield('bodyClass')">
     <a class="sr-only" href="#main-content">پرش به محتوای اصلی</a>
 
-    @unless (request()->routeIs('login', 'register', 'password.request', 'password.reset'))
-        @include('storefront.partials.header')
-    @endunless
+    @include('storefront.partials.header')
 
     <main id="main-content">
         @yield('content')
     </main>
 
-    @unless (request()->routeIs('login', 'register', 'password.request', 'password.reset'))
+    @unless (trim($__env->yieldContent('withoutFooter')) === 'true')
         @include('storefront.partials.footer')
     @endunless
     @include('storefront.partials.icon-sprite')

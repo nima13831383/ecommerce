@@ -14,12 +14,12 @@ use App\Services\Orders\OrderCreationContext;
 use App\Services\Orders\OrderPricing;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayRegistry;
+use App\Support\PersianNumber;
 use Tests\Support\Payments\FakePaymentGateway;
 
 beforeEach(function (): void {
     $this->fakeGateway = new FakePaymentGateway;
     $this->app->instance(PaymentGatewayRegistry::class, new PaymentGatewayRegistry([$this->fakeGateway]));
-    config(['payment.storefront_gateway' => 'fake']);
 });
 
 function storefrontOrderProduct(string $suffix = 'default', int $stock = 100): Product
@@ -97,7 +97,7 @@ test('guests are redirected and customers see only their own paginated orders', 
     $response = $this->actingAs($owner)->get(route('storefront.account.orders'));
     $response->assertOk()
         ->assertSee($first->order_number)
-        ->assertSee(number_format($first->grand_total).' ریال')
+        ->assertSee(PersianNumber::money($first->grand_total))
         ->assertDontSee('foreign');
 
     for ($index = 0; $index < 11; $index++) {
@@ -105,7 +105,7 @@ test('guests are redirected and customers see only their own paginated orders', 
     }
 
     $page = $this->actingAs($owner)->get(route('storefront.account.orders', ['page' => 2]));
-    $page->assertOk()->assertSee('صفحه‌بندی محصولات');
+    $page->assertOk()->assertSee('صفحه‌بندی');
 });
 
 test('empty orders and account dashboard use real order data without fake metrics', function (): void {

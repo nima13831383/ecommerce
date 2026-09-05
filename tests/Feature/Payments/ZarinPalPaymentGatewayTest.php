@@ -1,9 +1,12 @@
 <?php
 
 use App\Contracts\Payments\ZarinPalClientInterface;
+use App\Enums\InventoryOperation;
 use App\Enums\InventoryReservationStatus;
+use App\Enums\OrderPaymentStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
+use App\Models\CustomerNotification;
 use App\Models\InventoryTransaction;
 use App\Models\Payment;
 use App\Models\Product;
@@ -11,9 +14,11 @@ use App\Models\User;
 use App\Services\Inventory\InventoryService;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentCallbackSigner;
+use App\Services\Payments\PaymentGatewayConfiguration;
 use App\Services\Payments\PaymentGatewayRegistry;
 use App\Services\Payments\PaymentService;
 use App\Services\Payments\ZarinPalPaymentGateway;
+use App\Services\Settings\SettingsService;
 use App\Services\Storefront\StorefrontPaymentGateway;
 use Http\Client\Common\HttpMethodsClientInterface;
 use Psr\Http\Message\ResponseInterface;
@@ -49,6 +54,8 @@ class StubZarinPalClient implements ZarinPalClientInterface
         'message' => 'Success',
     ];
 
+    public ?Throwable $verifyException = null;
+
     public function request(
         int $amount,
         string $description,
@@ -66,6 +73,10 @@ class StubZarinPalClient implements ZarinPalClientInterface
     {
         $this->verifyArguments = compact('authority', 'amount');
 
+        if ($this->verifyException) {
+            throw $this->verifyException;
+        }
+
         return $this->verifyResponse;
     }
 
@@ -76,12 +87,11 @@ class StubZarinPalClient implements ZarinPalClientInterface
 }
 
 beforeEach(function (): void {
-    config([
-        'payment.storefront_gateway' => 'zarinpal',
-        'payment.gateways.zarinpal.merchant_id' => 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
-        'payment.gateways.zarinpal.sandbox' => true,
-        'payment.gateways.zarinpal.currency' => 'IRR',
-    ]);
+    $settings = app(SettingsService::class);
+    $settings->update('payment.zarinpal.merchant_id', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+    $settings->update('payment.zarinpal.sandbox', true);
+    $settings->update('payment.default_gateway', 'zarinpal');
+    $settings->update('payment.zarinpal.enabled', true);
 
     $this->zarinClient = new StubZarinPalClient;
     $this->zarinGateway = new ZarinPalPaymentGateway($this->zarinClient, new PaymentCallbackSigner);
@@ -127,12 +137,30 @@ function zarinPalTestOrder(string $suffix = 'default', int $price = 25_000): arr
     return [$user, $product, $order, $payment];
 }
 
+function zarinPalCallbackPayment(string $suffix = 'callback'): array
+{
+    [$user, $product, $order] = zarinPalTestOrder($suffix);
+
+    $payment = app(PaymentService::class)->initiate($order, 'zarinpal', "callback-{$suffix}-".fake()->uuid());
+
+    return [$user, $product, $order, $payment->fresh()];
+}
+
+function zarinPalCallbackUrl(Payment $payment): string
+{
+    return route('storefront.payment.callback', [
+        'payment' => $payment->payment_number,
+        'signature' => (new PaymentCallbackSigner)->sign($payment->payment_number),
+    ]);
+}
+
 test('zarinpal is registered only when a valid merchant id is configured', function (): void {
     $this->app->forgetInstance(PaymentGatewayRegistry::class);
 
     expect(app(PaymentGatewayRegistry::class)->gateway('zarinpal'))->toBeInstanceOf(ZarinPalPaymentGateway::class);
 
-    config(['payment.gateways.zarinpal.merchant_id' => null]);
+    app(SettingsService::class)->update('payment.zarinpal.enabled', false);
+    app(SettingsService::class)->update('payment.zarinpal.merchant_id', null);
     $this->app->forgetInstance(PaymentGatewayRegistry::class);
 
     expect(fn () => app(PaymentGatewayRegistry::class)->gateway('zarinpal'))->toThrow(DomainException::class);
@@ -250,21 +278,21 @@ test('zarinpal verification failure leaves reservation and stock untouched', fun
 });
 
 test('missing merchant id fails closed and fake remains unavailable in production', function (): void {
-    config(['payment.gateways.zarinpal.merchant_id' => null]);
-    $service = new StorefrontPaymentGateway(new PaymentGatewayRegistry([]));
+    app(SettingsService::class)->update('payment.zarinpal.enabled', false);
+    app(SettingsService::class)->update('payment.zarinpal.merchant_id', null);
+    $service = new StorefrontPaymentGateway(new PaymentGatewayRegistry([]), app(PaymentGatewayConfiguration::class));
     expect($service->alias())->toBeNull();
 
-    config(['payment.storefront_gateway' => 'fake']);
     app()->detectEnvironment(fn (): string => 'production');
     try {
-        expect((new StorefrontPaymentGateway(new PaymentGatewayRegistry([])))->alias())->toBeNull();
+        expect((new StorefrontPaymentGateway(new PaymentGatewayRegistry([]), app(PaymentGatewayConfiguration::class)))->alias())->toBeNull();
     } finally {
         app()->detectEnvironment(fn (): string => 'testing');
     }
 });
 
 test('production zarinpal configuration does not register the fake gateway', function (): void {
-    config(['payment.gateways.zarinpal.sandbox' => false]);
+    app(SettingsService::class)->update('payment.zarinpal.sandbox', false);
     app()->detectEnvironment(fn (): string => 'production');
 
     try {
@@ -328,4 +356,298 @@ test('official sdk request verify and redirect contract remains compatible with 
     expect($request->code)->toBe(100)
         ->and($verify->code)->toBe(100)
         ->and($gateway->getRedirectUrl($request->authority))->toStartWith('https://sandbox.zarinpal.com/');
+});
+
+test('status_ok_without_verify_does_not_mark_payment_paid', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('status-ok-failure');
+    $this->zarinClient->verifyResponse['code'] = 10101;
+
+    $this->get(zarinPalCallbackUrl($payment).'&Status=OK&Authority='.$payment->authority)
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Failed)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and(InventoryTransaction::query()->where('operation', InventoryOperation::ReservationCommit)->count())->toBe(0)
+        ->and(CustomerNotification::query()->where('order_id', $order->id)->where('type', 'payment_succeeded')->count())->toBe(0);
+});
+
+test('tampered_callback_cannot_mark_order_paid', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('tampered-signature');
+
+    $this->get(route('storefront.payment.callback', ['payment' => $payment->payment_number, 'signature' => str_repeat('0', 64)]).'&Status=OK&Authority='.$payment->authority)
+        ->assertNotFound();
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and($this->zarinClient->verifyArguments)->toBe([]);
+});
+
+test('wrong_authority_is_rejected', function (): void {
+    [, $productA, $orderA, $paymentA] = zarinPalCallbackPayment('wrong-authority-a');
+    $this->zarinClient->requestResponse['authority'] = 'B00000000000000000000000000000000000';
+    [, $productB, $orderB, $paymentB] = zarinPalCallbackPayment('wrong-authority-b');
+
+    $this->get(zarinPalCallbackUrl($paymentA).'&Status=OK&Authority='.$paymentB->authority)
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $paymentA->id]));
+
+    expect($paymentA->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($paymentB->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($orderA->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($orderB->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($productA->fresh()->stock_quantity)->toBe(5)
+        ->and($productB->fresh()->stock_quantity)->toBe(5)
+        ->and($this->zarinClient->verifyArguments)->toBe([]);
+});
+
+test('missing_authority_is_rejected', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('missing-authority');
+
+    $this->get(zarinPalCallbackUrl($payment).'&Status=OK')
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and($this->zarinClient->verifyArguments)->toBe([]);
+});
+
+test('malformed_authority_is_rejected', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('malformed-authority');
+
+    $this->get(zarinPalCallbackUrl($payment).'&Status=OK&Authority=%3Cinvalid%3E')
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and($this->zarinClient->verifyArguments)->toBe([]);
+});
+
+test('status_nok_never_marks_payment_paid', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('status-nok');
+
+    $this->get(zarinPalCallbackUrl($payment).'&Status=NOK&Authority='.$payment->authority)
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and($this->zarinClient->verifyArguments)->toBe([]);
+});
+
+test('unknown_status_never_marks_payment_paid', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('status-unknown');
+
+    $this->get(zarinPalCallbackUrl($payment).'&Status=SUCCESS&Authority='.$payment->authority)
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and($this->zarinClient->verifyArguments)->toBe([]);
+});
+
+test('verify_failure_keeps_order_unpaid', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('verify-failure');
+    $this->zarinClient->verifyResponse['code'] = 10101;
+
+    $this->get(zarinPalCallbackUrl($payment).'&Status=OK&Authority='.$payment->authority)
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Failed)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and(CustomerNotification::query()->where('order_id', $order->id)->where('type', 'payment_succeeded')->count())->toBe(0);
+});
+
+test('verify_network_exception_keeps_order_unpaid', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('verify-exception');
+    $this->zarinClient->verifyException = new RuntimeException('network unavailable');
+
+    $this->get(zarinPalCallbackUrl($payment).'&Status=OK&Authority='.$payment->authority)
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Failed)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and(CustomerNotification::query()->where('order_id', $order->id)->where('type', 'payment_succeeded')->count())->toBe(0);
+});
+
+test('verify_uses_persisted_amount_not_callback_amount', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('amount-tampering');
+
+    $this->get(zarinPalCallbackUrl($payment).'&Status=OK&Authority='.$payment->authority.'&amount=-1&order_id=0&ref_id=attacker')
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($this->zarinClient->verifyArguments)->toBe([
+        'authority' => $payment->authority,
+        'amount' => $payment->amount,
+    ])->and($payment->fresh()->status)->toBe(PaymentStatus::Paid)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Paid)
+        ->and($product->fresh()->stock_quantity)->toBe(4);
+});
+
+test('callback_does_not_depend_on_authenticated_session', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('sessionless');
+
+    $this->get(zarinPalCallbackUrl($payment).'&Status=OK&Authority='.$payment->authority)
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Paid)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Paid)
+        ->and($product->fresh()->stock_quantity)->toBe(4);
+});
+
+test('callback_cannot_target_another_order', function (): void {
+    [, $productA, $orderA, $paymentA] = zarinPalCallbackPayment('target-a');
+    $this->zarinClient->requestResponse['authority'] = 'B00000000000000000000000000000000000';
+    [, $productB, $orderB, $paymentB] = zarinPalCallbackPayment('target-b');
+
+    $this->get(zarinPalCallbackUrl($paymentA).'&Status=OK&Authority='.$paymentB->authority.'&order='.$orderB->order_number)
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $paymentA->id]));
+
+    expect($paymentA->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($paymentB->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($orderA->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($orderB->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($productA->fresh()->stock_quantity)->toBe(5)
+        ->and($productB->fresh()->stock_quantity)->toBe(5);
+});
+
+test('duplicate_success_callback_is_idempotent', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('duplicate-success');
+    $url = zarinPalCallbackUrl($payment).'&Status=OK&Authority='.$payment->authority;
+
+    $this->get($url)->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+    $this->get($url)->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Paid)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Paid)
+        ->and($product->fresh()->stock_quantity)->toBe(4)
+        ->and($payment->transactions()->where('type', 'verify')->count())->toBe(1)
+        ->and(InventoryTransaction::query()->where('operation', InventoryOperation::ReservationCommit)->count())->toBe(1)
+        ->and(CustomerNotification::query()->where('order_id', $order->id)->where('type', 'payment_succeeded')->count())->toBe(1);
+});
+
+test('inventory_commits_only_after_successful_verify', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('inventory-success');
+
+    expect($product->fresh()->stock_quantity)->toBe(5);
+
+    $this->get(zarinPalCallbackUrl($payment).'&Status=OK&Authority='.$payment->authority)
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Paid)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Paid)
+        ->and($product->fresh()->stock_quantity)->toBe(4)
+        ->and(InventoryTransaction::query()->where('operation', InventoryOperation::ReservationCommit)->count())->toBe(1);
+});
+
+test('fake_callback_does_not_commit_inventory', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('fake-callback');
+
+    $this->get(zarinPalCallbackUrl($payment).'&Status=OK&Authority=not-the-persisted-authority')
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and(InventoryTransaction::query()->where('operation', InventoryOperation::ReservationCommit)->count())->toBe(0)
+        ->and(CustomerNotification::query()->where('order_id', $order->id)->where('type', 'payment_succeeded')->count())->toBe(0);
+});
+
+test('success_notification_requires_verified_payment', function (): void {
+    [, , $failedOrder, $failedPayment] = zarinPalCallbackPayment('notification-failure');
+    $this->zarinClient->verifyResponse['code'] = 10101;
+    $this->get(zarinPalCallbackUrl($failedPayment).'&Status=OK&Authority='.$failedPayment->authority);
+
+    expect(CustomerNotification::query()->where('order_id', $failedOrder->id)->where('type', 'payment_succeeded')->count())->toBe(0);
+
+    $this->zarinClient->verifyResponse['code'] = 101;
+    [, , $successOrder, $successPayment] = zarinPalCallbackPayment('notification-success');
+    $this->get(zarinPalCallbackUrl($successPayment).'&Status=OK&Authority='.$successPayment->authority);
+
+    expect($successPayment->fresh()->status)->toBe(PaymentStatus::Paid)
+        ->and(CustomerNotification::query()->where('order_id', $successOrder->id)->where('type', 'payment_succeeded')->count())->toBe(1);
+});
+
+test('unknown_payment_callback_is_safe', function (): void {
+    $paymentNumber = 'PAY-UNKNOWN';
+
+    $this->get(route('storefront.payment.callback', [
+        'payment' => $paymentNumber,
+        'signature' => (new PaymentCallbackSigner)->sign($paymentNumber),
+    ]).'&Status=OK&Authority=unknown')->assertNotFound();
+
+    expect(Payment::query()->count())->toBe(0)
+        ->and($this->zarinClient->verifyArguments)->toBe([]);
+});
+
+test('already_paid_callback_is_idempotent', function (): void {
+    [, $product, $order, $payment] = zarinPalCallbackPayment('already-paid');
+    $url = zarinPalCallbackUrl($payment).'&Status=OK&Authority='.$payment->authority;
+    $this->get($url);
+    $this->zarinClient->verifyArguments = [];
+
+    $this->get($url)->assertRedirect(route('storefront.payment.result', ['payment' => $payment->id]));
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Paid)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Paid)
+        ->and($product->fresh()->stock_quantity)->toBe(4)
+        ->and($this->zarinClient->verifyArguments)->toBe([]);
+});
+
+test('old_payment_attempt_callback_does_not_corrupt_new_attempt', function (): void {
+    [, $product, $order, $first] = zarinPalCallbackPayment('old-attempt');
+    $this->zarinClient->verifyResponse['code'] = 10101;
+    $this->get(zarinPalCallbackUrl($first).'&Status=OK&Authority='.$first->authority);
+
+    $this->zarinClient->verifyResponse['code'] = 100;
+    $this->zarinClient->requestResponse['authority'] = 'B00000000000000000000000000000000000';
+    $second = app(PaymentService::class)->initiate($order->fresh(), 'zarinpal', 'retry-'.fake()->uuid());
+    $this->zarinClient->verifyArguments = [];
+
+    $this->get(zarinPalCallbackUrl($first).'&Status=OK&Authority='.$first->authority)
+        ->assertRedirect(route('storefront.payment.result', ['payment' => $first->id]));
+
+    expect($first->fresh()->status)->toBe(PaymentStatus::Failed)
+        ->and($second->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and($this->zarinClient->verifyArguments)->toBe([]);
+});
+
+test('success_page_does_not_mutate_payment_state', function (): void {
+    [$user, $product, $order, $payment] = zarinPalCallbackPayment('success-page');
+    $order->forceFill(['user_id' => $user->id])->save();
+
+    $this->actingAs($user)
+        ->get(route('storefront.checkout.success', ['order' => $order->id]).'?Status=OK&Authority='.$payment->authority)
+        ->assertOk()
+        ->assertSee('وضعیت پرداخت:')
+        ->assertSee('unpaid');
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and($this->zarinClient->verifyArguments)->toBe([]);
+});
+
+test('authenticated_zarinpal_return_rejects_missing_or_malformed_callback_fields', function (): void {
+    [$user, $product, $order, $payment] = zarinPalCallbackPayment('authenticated-return');
+    $returnUrl = route('storefront.payment.return', ['payment' => $payment->id]);
+
+    $this->actingAs($user)->get($returnUrl)
+        ->assertOk()
+        ->assertSee('اطلاعات بازگشت پرداخت معتبر نیست');
+    $this->actingAs($user)->get($returnUrl.'?Status=OK&Authority=%3Cinvalid%3E')
+        ->assertOk()
+        ->assertSee('اطلاعات بازگشت پرداخت معتبر نیست');
+
+    expect($payment->fresh()->status)->toBe(PaymentStatus::Processing)
+        ->and($order->fresh()->payment_status)->toBe(OrderPaymentStatus::Unpaid)
+        ->and($product->fresh()->stock_quantity)->toBe(5)
+        ->and($this->zarinClient->verifyArguments)->toBe([]);
 });

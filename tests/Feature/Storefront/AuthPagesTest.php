@@ -4,9 +4,17 @@ use App\Models\User;
 use Illuminate\Support\Facades\Hash;
 
 test('guest auth pages use the storefront presentation', function (): void {
-    $this->get('/login')->assertOk()->assertSee('auth-form');
-    $this->get('/register')->assertOk()->assertSee('auth-form');
-    $this->get('/forgot-password')->assertOk()->assertSee('auth-form');
+    foreach (['/login', '/register', '/forgot-password', '/reset-password/test-token'] as $uri) {
+        $this->get($uri)
+            ->assertOk()
+            ->assertSee('auth-form')
+            ->assertSee('<header>', false)
+            ->assertDontSee('auth-trust', false)
+            ->assertDontSee('site-footer', false);
+    }
+
+    $this->get('/login')->assertSee('password-toggle', false)->assertSee('#i-eye', false);
+    $this->get('/reset-password/test-token')->assertSee('password-toggle', false)->assertSee('#i-eye', false);
 });
 
 test('customers can authenticate and logout through Breeze web routes', function (): void {

@@ -31,7 +31,7 @@
             @endif
 
             <div class="cart-page__heading">
-                <div><h1>سبد خرید</h1><p data-cart-count>{{ $cart['item_count'] }} کالا در سبد خرید</p></div>
+                <div><h1>سبد خرید</h1><p data-cart-count>{{ \App\Support\PersianNumber::digits($cart['item_count']) }} کالا در سبد خرید</p></div>
                 <a class="cart-continue" href="{{ route('storefront.products.index') }}">ادامه خرید</a>
             </div>
 
@@ -49,15 +49,15 @@
                                     @foreach ($line['options'] as $option)<span class="cart-page-item__variant">{{ $option['attribute'] }}: {{ $option['value'] }}</span>@endforeach
                                     @if (! $line['available'])<span class="cart-page-item__variant cart-line-unavailable">این محصول دیگر موجود نیست</span>@endif
                                 </div>
-                                <div class="cart-page-item__price"><span>قیمت واحد</span><strong>{{ number_format($line['unit_price']) }} ریال</strong></div>
+                                <div class="cart-page-item__price"><span>قیمت واحد</span><strong>{{ \App\Support\PersianNumber::money($line['unit_price']) }}</strong></div>
                                 <form method="post" action="{{ route('storefront.cart.items.update', ['item' => $line['id']]) }}" class="quantity-control">
                                     @csrf
                                     @method('PATCH')
                                     <button type="submit" name="quantity" value="{{ max(1, $line['quantity'] - 1) }}" aria-label="کاهش تعداد">−</button>
-                                    <output aria-label="تعداد">{{ $line['quantity'] }}</output>
+                                    <output aria-label="تعداد">{{ \App\Support\PersianNumber::digits($line['quantity']) }}</output>
                                     <button type="submit" name="quantity" value="{{ $line['quantity'] + 1 }}" aria-label="افزایش تعداد">+</button>
                                 </form>
-                                <div class="cart-page-item__total"><span>جمع</span><strong>{{ number_format($line['line_total']) }} ریال</strong></div>
+                                <div class="cart-page-item__total"><span>جمع</span><strong>{{ \App\Support\PersianNumber::money($line['line_total']) }}</strong></div>
                                 <form method="post" action="{{ route('storefront.cart.items.remove', ['item' => $line['id']]) }}">
                                     @csrf
                                     @method('DELETE')
@@ -73,11 +73,11 @@
                     <div class="cart-summary__inner">
                         <h2 id="cart-summary-title">خلاصه سفارش</h2>
                         <dl>
-                            <div><dt>جمع قیمت کالاها</dt><dd data-cart-subtotal>{{ number_format($cart['subtotal']) }} ریال</dd></div>
-                            <div><dt>تخفیف کالاها</dt><dd data-cart-discount>{{ number_format($cart['discount_total']) }} ریال</dd></div>
-                            <div><dt>مالیات</dt><dd>{{ number_format($cart['tax_total']) }} ریال</dd></div>
+                            <div><dt>جمع قیمت کالاها</dt><dd data-cart-subtotal>{{ \App\Support\PersianNumber::money($cart['subtotal']) }}</dd></div>
+                            <div><dt>تخفیف کالاها</dt><dd data-cart-discount>{{ \App\Support\PersianNumber::money($cart['discount_total']) }}</dd></div>
+                            <div><dt>مالیات</dt><dd>{{ \App\Support\PersianNumber::money($cart['tax_total']) }}</dd></div>
                             <div><dt>هزینه ارسال</dt><dd class="cart-summary__muted">در مرحله بعد محاسبه می‌شود</dd></div>
-                            <div class="cart-summary__total"><dt>جمع نهایی</dt><dd data-cart-total>{{ number_format($cart['grand_total']) }} ریال</dd></div>
+                            <div class="cart-summary__total"><dt>جمع نهایی</dt><dd data-cart-total>{{ \App\Support\PersianNumber::money($cart['grand_total']) }}</dd></div>
                         </dl>
                         @if ($cart['coupon'])
                             <div class="coupon-box coupon-box--active">
@@ -126,7 +126,7 @@
                             <p class="cart-checkout-note">برای محاسبه هزینه ارسال، ابتدا وارد حساب کاربری شوید.</p>
                         @endauth
                         @if ($shipping)
-                            <p class="shipping-quote-result" role="status">روش {{ $shipping['service_label'] }}: {{ number_format($shipping['amount']) }} ریال</p>
+                            <p class="shipping-quote-result" role="status">روش {{ $shipping['service_label'] }}: {{ \App\Support\PersianNumber::money($shipping['amount']) }}</p>
                         @elseif ($shippingError)
                             <p class="storefront-alert storefront-alert--error" role="alert">{{ $shippingError }}</p>
                         @endif

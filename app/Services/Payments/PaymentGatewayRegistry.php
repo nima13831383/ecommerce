@@ -20,4 +20,15 @@ class PaymentGatewayRegistry
 
         throw new DomainException("The payment gateway [{$alias}] is not available.");
     }
+
+    public function has(string $alias): bool
+    {
+        try {
+            $this->gateway($alias);
+        } catch (DomainException) {
+            return false;
+        }
+
+        return true;
+    }
 }

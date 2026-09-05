@@ -7,6 +7,7 @@ use App\Models\Attribute;
 use App\Models\AttributeValue;
 use App\Models\Brand;
 use App\Models\Category;
+use App\Models\InventoryTransaction;
 use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\ProductVariation;
@@ -126,6 +127,17 @@ class CreateStorefrontDemoProducts extends Command
 
         $this->upsertProduct($this->hiddenDefinition($catalog, $taxClass), $inventory);
 
+        foreach ($this->additionalVariableDefinitions($catalog, $taxClass) as $definition) {
+            $product = $this->upsertProduct($definition['product'], $inventory);
+            $this->syncVariableProduct($product, $definition['attributes'], $definition['variations'], $variants);
+            $this->syncImages($product, $definition['images']);
+        }
+
+        foreach ($this->additionalSimpleDefinitions($catalog, $taxClass) as $definition) {
+            $product = $this->upsertProduct($definition, $inventory);
+            $this->syncImages($product, [$definition['image']]);
+        }
+
         $this->info('Demo catalog reconciliation complete.');
         foreach ($this->counts as $key => $count) {
             $this->line("{$key}: {$count}");
@@ -142,6 +154,8 @@ class CreateStorefrontDemoProducts extends Command
             'accessories' => $this->supportCategory('اکسسوری', 'accessories'),
             'cosmetics' => $this->supportCategory('لوازم آرایشی', 'cosmetics'),
             'skincare' => $this->supportCategory('مراقبت پوست', 'skincare'),
+            'jewelry' => $this->supportCategory('زیورآلات', 'jewelry'),
+            'haircare' => $this->supportCategory('مراقبت مو', 'haircare'),
         ];
 
         $brands = [
@@ -287,7 +301,7 @@ class CreateStorefrontDemoProducts extends Command
             ])->save();
         }
 
-        if ($product->type !== 'variable') {
+        if ($product->type !== 'variable' && ($isNew || ! $this->hasInventoryState($product))) {
             $transaction = $inventory->setOnHand(
                 $product->fresh(),
                 $definition['stock'],
@@ -425,6 +439,10 @@ class CreateStorefrontDemoProducts extends Command
             'is_dismissed' => false,
         ];
 
+        if ($variation && $this->hasInventoryState($variation)) {
+            unset($attributes['stock_quantity']);
+        }
+
         if ($variation) {
             $this->counts['variations_reused']++;
 
@@ -434,6 +452,14 @@ class CreateStorefrontDemoProducts extends Command
         $this->counts['variations_created']++;
 
         return $variants->create($product, $attributes, $definition['attribute_value_ids']);
+    }
+
+    private function hasInventoryState(Product|ProductVariation $owner): bool
+    {
+        return InventoryTransaction::query()
+            ->where('inventory_owner_type', $owner::class)
+            ->where('inventory_owner_id', $owner->getKey())
+            ->exists();
     }
 
     /** @param array<int, array<string, mixed>> $images */
@@ -552,6 +578,129 @@ class CreateStorefrontDemoProducts extends Command
             'stock' => $stock,
             'image' => $image,
         ];
+    }
+
+    /** @return array<int, array{product: array<string, mixed>, attributes: array<int, array<string, mixed>>, variations: array<int, array<string, mixed>>, images: array<int, array<string, string>>}> */
+    private function additionalVariableDefinitions(array $catalog, ?TaxClass $taxClass): array
+    {
+        return [
+            [
+                'product' => $this->variableDefinition($catalog, $taxClass, 'ادو پرفیوم نور Aurora', 'demo-aurora-noor-perfume', 'DEMO-PERFUME-002', 'perfume', 'aurora', 'رایحه‌ای گرم و ماندگار با بسته‌بندی هدیه.', 'عطر شیشه‌ای نور Aurora برای استفاده روزانه و هدیه‌دادن طراحی شده است.', 0.45, 460, 'fragile'),
+                'attributes' => [
+                    ['name' => 'حجم', 'slug' => 'demo-noor-volume', 'values' => [['value' => '30 میلی‌لیتر', 'slug' => '30ml'], ['value' => '50 میلی‌لیتر', 'slug' => '50ml'], ['value' => '100 میلی‌لیتر', 'slug' => '100ml']]],
+                    ['name' => 'بسته‌بندی', 'slug' => 'demo-noor-packaging', 'values' => [['value' => 'استاندارد', 'slug' => 'standard'], ['value' => 'کادویی', 'slug' => 'gift']]],
+                ],
+                'variations' => $this->variationMatrix([
+                    1 => ['30ml', '50ml', '100ml'],
+                    2 => ['standard', 'gift'],
+                ], [
+                    '30ml-standard' => ['sku' => 'DEMO-PERFUME-002-30-STANDARD', 'price' => 19_500_000, 'stock' => 6, 'weight' => 0.32, 'volume' => 190],
+                    '30ml-gift' => ['sku' => 'DEMO-PERFUME-002-30-GIFT', 'price' => 21_500_000, 'sale_price' => 19_350_000, 'stock' => 2, 'weight' => 0.38, 'volume' => 240],
+                    '50ml-standard' => ['sku' => 'DEMO-PERFUME-002-50-STANDARD', 'price' => 27_000_000, 'stock' => 4, 'weight' => 0.4, 'volume' => 280],
+                    '50ml-gift' => ['sku' => 'DEMO-PERFUME-002-50-GIFT', 'price' => 29_500_000, 'sale_price' => 26_550_000, 'stock' => 0, 'weight' => 0.47, 'volume' => 340],
+                    '100ml-standard' => ['sku' => 'DEMO-PERFUME-002-100-STANDARD', 'price' => 42_000_000, 'stock' => 3, 'weight' => 0.58, 'volume' => 470],
+                    '100ml-gift' => ['sku' => 'DEMO-PERFUME-002-100-GIFT', 'price' => 46_000_000, 'stock' => 1, 'weight' => 0.68, 'volume' => 560],
+                ]),
+                'images' => [$this->demoImage('primary', 'ادو پرفیوم نور Aurora', '#f3d5b5', '#9c6644', 'Aurora Noor')],
+            ],
+            [
+                'product' => $this->variableDefinition($catalog, $taxClass, 'دستبند استیل Luna کلاسیک', 'demo-luna-classic-bracelet', 'DEMO-BRACELET-002', 'accessories', 'lumiere', 'دستبند استیل سبک با دو رنگ و دو سایز.', 'دستبند Luna کلاسیک با فرم ساده و آبکاری ماندگار، انتخابی مناسب برای استفاده روزمره است.', 0.08, 90, 'normal'),
+                'attributes' => [
+                    ['name' => 'رنگ', 'slug' => 'demo-luna-classic-color', 'values' => [['value' => 'طلایی', 'slug' => 'gold'], ['value' => 'نقره‌ای', 'slug' => 'silver']]],
+                    ['name' => 'سایز', 'slug' => 'demo-luna-classic-size', 'values' => [['value' => 'کوچک', 'slug' => 'small'], ['value' => 'بزرگ', 'slug' => 'large']]],
+                ],
+                'variations' => $this->variationMatrix([
+                    1 => ['gold', 'silver'],
+                    2 => ['small', 'large'],
+                ], [
+                    'gold-small' => ['sku' => 'DEMO-BRACELET-002-GOLD-S', 'price' => 8_200_000, 'stock' => 5, 'weight' => 0.05, 'volume' => 65],
+                    'gold-large' => ['sku' => 'DEMO-BRACELET-002-GOLD-L', 'price' => 8_900_000, 'sale_price' => 8_010_000, 'stock' => 3, 'weight' => 0.07, 'volume' => 85],
+                    'silver-small' => ['sku' => 'DEMO-BRACELET-002-SILVER-S', 'price' => 7_600_000, 'stock' => 2, 'weight' => 0.05, 'volume' => 65],
+                    'silver-large' => ['sku' => 'DEMO-BRACELET-002-SILVER-L', 'price' => 8_300_000, 'stock' => 0, 'weight' => 0.07, 'volume' => 85],
+                ]),
+                'images' => [$this->demoImage('primary', 'دستبند استیل Luna کلاسیک', '#e9ecef', '#6c757d', 'Luna Classic')],
+            ],
+            [
+                'product' => $this->variableDefinition($catalog, $taxClass, 'رژ لب مات Velvet رنگی', 'demo-velvet-color-lipstick', 'DEMO-LIPSTICK-002', 'cosmetics', 'maison-noir', 'رژ لب مات با چهار رنگ کاربردی و پوشش نرم.', 'رژ لب Velvet رنگی با بافت سبک، ماندگاری مناسب و چهار انتخاب رنگ برای آرایش روزانه آماده شده است.', 0.06, 50, 'normal'),
+                'attributes' => [
+                    ['name' => 'رنگ', 'slug' => 'demo-velvet-color', 'values' => [['value' => 'رز روشن', 'slug' => 'rose'], ['value' => 'قرمز کلاسیک', 'slug' => 'classic-red'], ['value' => 'نود گرم', 'slug' => 'warm-nude'], ['value' => 'آلبالویی', 'slug' => 'cherry']]],
+                ],
+                'variations' => $this->variationMatrix([1 => ['rose', 'classic-red', 'warm-nude', 'cherry']], [
+                    'rose' => ['sku' => 'DEMO-LIPSTICK-002-ROSE', 'price' => 8_900_000, 'sale_price' => 7_120_000, 'stock' => 7, 'weight' => 0.05, 'volume' => 45],
+                    'classic-red' => ['sku' => 'DEMO-LIPSTICK-002-RED', 'price' => 9_200_000, 'stock' => 4, 'weight' => 0.05, 'volume' => 45],
+                    'warm-nude' => ['sku' => 'DEMO-LIPSTICK-002-NUDE', 'price' => 8_700_000, 'stock' => 1, 'weight' => 0.05, 'volume' => 45],
+                    'cherry' => ['sku' => 'DEMO-LIPSTICK-002-CHERRY', 'price' => 9_400_000, 'stock' => 0, 'weight' => 0.05, 'volume' => 45],
+                ]),
+                'images' => [$this->demoImage('primary', 'رژ لب مات Velvet رنگی', '#f8ad9d', '#9d0208', 'Velvet Color')],
+            ],
+            [
+                'product' => $this->variableDefinition($catalog, $taxClass, 'کیف آرایش روزمره رنگی', 'demo-daily-makeup-bag', 'DEMO-MAKEUP-BAG-001', 'accessories', 'lumiere', 'کیف آرایش سبک و قابل شست‌وشو در سه رنگ.', 'کیف آرایش روزمره با فضای کافی برای لوازم ضروری و آستر قابل تمیزکردن ساخته شده است.', 0.18, 240, 'normal'),
+                'attributes' => [['name' => 'رنگ', 'slug' => 'demo-makeup-bag-color', 'values' => [['value' => 'صورتی', 'slug' => 'pink'], ['value' => 'سبز زیتونی', 'slug' => 'olive'], ['value' => 'مشکی', 'slug' => 'black']]]],
+                'variations' => $this->variationMatrix([1 => ['pink', 'olive', 'black']], [
+                    'pink' => ['sku' => 'DEMO-MAKEUP-BAG-001-PINK', 'price' => 5_900_000, 'stock' => 9, 'weight' => 0.16, 'volume' => 320],
+                    'olive' => ['sku' => 'DEMO-MAKEUP-BAG-001-OLIVE', 'price' => 6_100_000, 'sale_price' => 5_490_000, 'stock' => 3, 'weight' => 0.16, 'volume' => 320],
+                    'black' => ['sku' => 'DEMO-MAKEUP-BAG-001-BLACK', 'price' => 6_100_000, 'stock' => 2, 'weight' => 0.16, 'volume' => 320],
+                ]),
+                'images' => [$this->demoImage('primary', 'کیف آرایش روزمره رنگی', '#f7cad0', '#6b705c', 'Daily Makeup Bag')],
+            ],
+            [
+                'product' => $this->variableDefinition($catalog, $taxClass, 'بادی اسپلش نسیم شب', 'demo-night-breeze-body-mist', 'DEMO-BODY-MIST-001', 'perfume', 'aurora', 'بادی اسپلش سبک با سه حجم برای استفاده روزانه.', 'بادی اسپلش نسیم شب با رایحه‌ای خنک و ملایم، گزینه‌ای مناسب برای کیف روزانه و سفر است.', 0.3, 260, 'normal'),
+                'attributes' => [['name' => 'حجم', 'slug' => 'demo-night-breeze-volume', 'values' => [['value' => '100 میلی‌لیتر', 'slug' => '100ml'], ['value' => '200 میلی‌لیتر', 'slug' => '200ml'], ['value' => '300 میلی‌لیتر', 'slug' => '300ml']]]],
+                'variations' => $this->variationMatrix([1 => ['100ml', '200ml', '300ml']], [
+                    '100ml' => ['sku' => 'DEMO-BODY-MIST-001-100', 'price' => 9_500_000, 'stock' => 8, 'weight' => 0.22, 'volume' => 150],
+                    '200ml' => ['sku' => 'DEMO-BODY-MIST-001-200', 'price' => 13_500_000, 'sale_price' => 10_800_000, 'stock' => 2, 'weight' => 0.32, 'volume' => 260],
+                    '300ml' => ['sku' => 'DEMO-BODY-MIST-001-300', 'price' => 17_500_000, 'stock' => 0, 'weight' => 0.43, 'volume' => 380],
+                ]),
+                'images' => [$this->demoImage('primary', 'بادی اسپلش نسیم شب', '#caf0f8', '#0077b6', 'Night Breeze')],
+            ],
+        ];
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function additionalSimpleDefinitions(array $catalog, ?TaxClass $taxClass): array
+    {
+        return [
+            $this->simpleDefinition($catalog, $taxClass, 'necklace', 'گردنبند استیل آفتاب', 'demo-sunrise-steel-necklace', 'DEMO-NECKLACE-001', 'jewelry', 'lumiere', 11_500_000, 6, $this->demoImage('primary', 'گردنبند استیل آفتاب', '#ffe5b4', '#bc6c25', 'Sunrise Necklace'), 9_200_000),
+            $this->simpleDefinition($catalog, $taxClass, 'mascara', 'ریمل حجم‌دهنده سایه', 'demo-saye-volume-mascara', 'DEMO-MASCARA-001', 'cosmetics', 'maison-noir', 7_800_000, 2, $this->demoImage('primary', 'ریمل حجم‌دهنده سایه', '#dee2e6', '#343a40', 'Saye Mascara')),
+            $this->simpleDefinition($catalog, $taxClass, 'cream', 'کرم آبرسان ابریشم', 'demo-silk-hydrating-cream', 'DEMO-CREAM-001', 'skincare', 'maison-noir', 16_500_000, 12, $this->demoImage('primary', 'کرم آبرسان ابریشم', '#fefae0', '#dda15e', 'Silk Cream'), 13_200_000),
+            $this->simpleDefinition($catalog, $taxClass, 'sunscreen', 'ضدآفتاب مینرال روشن', 'demo-mineral-sunscreen', 'DEMO-SUNSCREEN-001', 'skincare', 'aurora', 14_900_000, 0, $this->demoImage('primary', 'ضدآفتاب مینرال روشن', '#e0fbfc', '#3d5a80', 'Mineral Sunscreen'), 11_920_000),
+            $this->simpleDefinition($catalog, $taxClass, 'hair-serum', 'سرم مو ابریشمین', 'demo-silky-hair-serum', 'DEMO-HAIR-SERUM-001', 'haircare', 'aurora', 18_900_000, 5, $this->demoImage('primary', 'سرم مو ابریشمین', '#d8f3dc', '#40916c', 'Silky Hair Serum'), 16_065_000),
+        ];
+    }
+
+    /** @return array<string, mixed> */
+    private function variableDefinition(array $catalog, ?TaxClass $taxClass, string $name, string $slug, string $sku, string $category, string $brand, string $shortDescription, string $description, float $weight, int $volume, string $parcelType): array
+    {
+        return [
+            'brand_id' => $catalog['brands'][$brand]->id,
+            'category_id' => $catalog['categories'][$category]->id,
+            'tag_ids' => [$catalog['tags']['new']->id, $catalog['tags']['variable']->id],
+            'type' => 'variable',
+            'name' => $name,
+            'slug' => $slug,
+            'sku' => $sku,
+            'short_description' => $shortDescription,
+            'description' => $description,
+            'price' => 0,
+            'sale_price' => null,
+            'sale_starts_at' => null,
+            'sale_ends_at' => null,
+            'manage_stock' => false,
+            'weight' => $weight,
+            'volume' => $volume,
+            'parcel_type' => $parcelType,
+            'tax_class_id' => $taxClass?->id,
+            'status' => 'published',
+            'is_featured' => true,
+            'published_at' => now(),
+            'stock' => 0,
+        ];
+    }
+
+    /** @return array<string, string> */
+    private function demoImage(string $filename, string $alt, string $start, string $end, string $label): array
+    {
+        return compact('filename', 'alt', 'start', 'end', 'label');
     }
 
     /** @return array<string, mixed> */

@@ -95,7 +95,7 @@ class PaymentService
     {
         $payment = Payment::query()->findOrFail($payment->id);
 
-        if ($payment->status === PaymentStatus::Paid) {
+        if (in_array($payment->status, [PaymentStatus::Paid, PaymentStatus::Failed], true)) {
             return $payment;
         }
 
@@ -106,7 +106,7 @@ class PaymentService
             $payment = Payment::query()->lockForUpdate()->findOrFail($payment->id);
             $order = Order::query()->lockForUpdate()->findOrFail($payment->order_id);
 
-            if ($payment->status === PaymentStatus::Paid) {
+            if (in_array($payment->status, [PaymentStatus::Paid, PaymentStatus::Failed], true)) {
                 return $payment;
             }
 

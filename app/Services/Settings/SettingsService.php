@@ -4,10 +4,13 @@ namespace App\Services\Settings;
 
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\Payments\PaymentGatewayConfiguration;
 use App\Services\Shipping\Data\WordpressShippingDataLoader;
 use App\Services\Shipping\ShippingOptionCatalog;
 use App\Settings\SettingDefinition;
 use App\Settings\SettingRegistry;
+use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
@@ -29,7 +32,7 @@ class SettingsService
             ->first();
 
         if ($setting !== null) {
-            return $setting->typed_value;
+            return $this->deserializeValue($definition, $setting->typed_value);
         }
 
         return $default ?? $definition->default;
@@ -47,10 +50,12 @@ class SettingsService
         $previousMode = $key === 'shipping.mode' ? $this->get('shipping.mode') : null;
 
         $setting = DB::transaction(function () use ($definition, $normalized, $previousMode): Setting {
+            $this->assertPaymentSetting($definition->key, $normalized);
+
             $setting = Setting::query()->updateOrCreate(
                 ['group' => $definition->group, 'key' => $definition->key],
                 [
-                    'value' => $normalized,
+                    'value' => $this->serializeValue($definition, $normalized),
                     'type' => $definition->type,
                     'is_public' => false,
                 ],
@@ -100,7 +105,7 @@ class SettingsService
                 Setting::query()->insertOrIgnore([
                     'group' => $definition->group,
                     'key' => $definition->key,
-                    'value' => $this->serializeValue($definition->default),
+                    'value' => $this->serializeValue($definition, $definition->default),
                     'type' => $definition->type,
                     'is_public' => false,
                     'created_at' => $now,
@@ -113,7 +118,7 @@ class SettingsService
     }
 
     /**
-     * @return array{registered: int, persisted: int, missing: array<int, string>, unknown: array<int, array{group: string, key: string}>, needs_configuration: array<int, string>}
+     * @return array{registered: int, persisted: int, missing: array<int, string>, unknown: array<int, array{group: string, key: string}>, needs_configuration: array<int, string>, payment: array{default_gateway: string, enabled: bool, sandbox: bool, merchant_configured: bool, merchant_valid: bool, operational: bool}}
      */
     public function status(): array
     {
@@ -152,12 +157,35 @@ class SettingsService
             }
         }
 
+        if ($this->get('payment.default_gateway') === 'zarinpal' && $this->get('payment.zarinpal.enabled') === true) {
+            $merchantId = $this->get('payment.zarinpal.merchant_id');
+
+            if (! PaymentGatewayConfiguration::validMerchantId($merchantId)) {
+                $needsConfiguration[] = 'payment.zarinpal.merchant_id';
+            }
+
+            if (app()->isProduction() && $this->get('payment.zarinpal.sandbox') === true) {
+                $needsConfiguration[] = 'payment.zarinpal.sandbox';
+            }
+        }
+
+        $merchantId = $this->get('payment.zarinpal.merchant_id');
+        $payment = [
+            'default_gateway' => $this->get('payment.default_gateway') ?? 'not configured',
+            'enabled' => $this->get('payment.zarinpal.enabled') === true,
+            'sandbox' => $this->get('payment.zarinpal.sandbox') === true,
+            'merchant_configured' => $merchantId !== null,
+            'merchant_valid' => PaymentGatewayConfiguration::validMerchantId($merchantId),
+            'operational' => app(PaymentGatewayConfiguration::class)->zarinPal() !== null,
+        ];
+
         return [
             'registered' => count($definitions),
             'persisted' => count(array_filter($definitions, fn (SettingDefinition $definition): bool => isset($persistedKeys[$definition->group.':'.$definition->key]))),
             'missing' => $missing,
             'unknown' => $unknown,
             'needs_configuration' => $needsConfiguration,
+            'payment' => $payment,
         ];
     }
 
@@ -181,6 +209,10 @@ class SettingsService
             default => is_string($validated) ? trim($validated) : $validated,
         };
 
+        if ($definition->key === 'payment.zarinpal.merchant_id' && $normalized !== null) {
+            $normalized = strtolower($normalized);
+        }
+
         $this->assertShippingSetting($definition->key, $normalized);
 
         return $normalized;
@@ -199,14 +231,33 @@ class SettingsService
         }
     }
 
-    private function serializeValue(mixed $value): ?string
+    private function serializeValue(SettingDefinition $definition, mixed $value): ?string
     {
+        if ($definition->secret && $value !== null) {
+            return Crypt::encryptString((string) $value);
+        }
+
         return match (true) {
             $value === null => null,
             is_array($value) => json_encode($value, JSON_UNESCAPED_UNICODE),
             is_bool($value) => $value ? '1' : '0',
             default => (string) $value,
         };
+    }
+
+    private function deserializeValue(SettingDefinition $definition, mixed $value): mixed
+    {
+        if (! $definition->secret || $value === null) {
+            return $value;
+        }
+
+        try {
+            return Crypt::decryptString((string) $value);
+        } catch (DecryptException) {
+            Log::error('settings.secret_decryption_failed', ['setting_key' => $definition->key]);
+
+            return null;
+        }
     }
 
     private function assertShippingSetting(string $key, mixed $value): void
@@ -231,6 +282,33 @@ class SettingsService
             if (! is_array($package) || blank($package['id'] ?? null) || blank($package['name'] ?? null) || ! is_numeric($package['capacity_volume'] ?? null) || (float) $package['capacity_volume'] <= 0 || ! is_numeric($package['max_weight'] ?? null) || (float) $package['max_weight'] <= 0 || ! in_array((int) ($package['code'] ?? 0), $codes, true)) {
                 throw ValidationException::withMessages(['value' => 'تنظیم بسته‌بندی نامعتبر است.']);
             }
+        }
+    }
+
+    private function assertPaymentSetting(string $key, mixed $value): void
+    {
+        if (! str_starts_with($key, 'payment.')) {
+            return;
+        }
+
+        if ($key === 'payment.zarinpal.sandbox' && $value === true && app()->isProduction()) {
+            throw ValidationException::withMessages(['value' => 'حالت آزمایشی زرین‌پال در محیط تولید مجاز نیست.']);
+        }
+
+        $defaultGateway = $key === 'payment.default_gateway' ? $value : $this->get('payment.default_gateway');
+        $enabled = $key === 'payment.zarinpal.enabled' ? $value : $this->get('payment.zarinpal.enabled');
+        $merchantId = $key === 'payment.zarinpal.merchant_id' ? $value : $this->get('payment.zarinpal.merchant_id');
+
+        if ($enabled !== true) {
+            return;
+        }
+
+        if ($defaultGateway !== 'zarinpal') {
+            throw ValidationException::withMessages(['value' => 'برای فعال‌سازی زرین‌پال، درگاه پیش‌فرض باید زرین‌پال باشد.']);
+        }
+
+        if (! PaymentGatewayConfiguration::validMerchantId($merchantId)) {
+            throw ValidationException::withMessages(['value' => 'برای فعال‌سازی زرین‌پال، مرچنت آیدی معتبر لازم است.']);
         }
     }
 }

@@ -23,6 +23,11 @@ class SiteSettingsStatus extends Command
             ->implode(', ');
         $this->line('Unknown: '.($unknown === '' ? 'none' : $unknown));
         $this->line('Needs configuration: '.($status['needs_configuration'] === [] ? 'none' : implode(', ', $status['needs_configuration'])));
+        $this->line('Payment default gateway: '.$status['payment']['default_gateway']);
+        $this->line('Payment ZarinPal enabled: '.($status['payment']['enabled'] ? 'yes' : 'no'));
+        $this->line('Payment ZarinPal sandbox: '.($status['payment']['sandbox'] ? 'yes' : 'no'));
+        $this->line('Payment ZarinPal merchant: '.($status['payment']['merchant_configured'] ? 'configured' : 'not configured'));
+        $this->line('Payment ZarinPal operational: '.($status['payment']['operational'] ? 'yes' : 'no'));
 
         return self::SUCCESS;
     }

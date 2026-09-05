@@ -9,6 +9,7 @@ use App\Settings\SettingRegistry;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
+use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Utilities\Get;
 use Filament\Schemas\Schema;
 
@@ -25,6 +26,32 @@ class SettingForm
                 ->options(SettingRegistry::get('shipping.mode')->options)
                 ->visible(fn (Get $get): bool => $get('key') === 'shipping.mode')
                 ->required(fn (Get $get): bool => $get('key') === 'shipping.mode'),
+            Select::make('value_string')
+                ->label('درگاه پرداخت پیش‌فرض')
+                ->options(SettingRegistry::get('payment.default_gateway')->options)
+                ->placeholder('غیرفعال')
+                ->visible(fn (Get $get): bool => $get('key') === 'payment.default_gateway')
+                ->nullable()
+                ->helperText('برای فعال‌سازی پرداخت، زرین‌پال را انتخاب کنید.'),
+            Toggle::make('value_boolean')
+                ->label('فعال بودن زرین‌پال')
+                ->visible(fn (Get $get): bool => $get('key') === 'payment.zarinpal.enabled')
+                ->helperText('فقط پس از انتخاب زرین‌پال و ثبت مرچنت آیدی معتبر فعال می‌شود.'),
+            Toggle::make('value_boolean')
+                ->label('حالت آزمایشی زرین‌پال')
+                ->visible(fn (Get $get): bool => $get('key') === 'payment.zarinpal.sandbox')
+                ->helperText('فقط برای محیط توسعه/آزمایش؛ در محیط تولید پذیرفته نمی‌شود.'),
+            TextInput::make('value_secret')
+                ->label('مرچنت آیدی زرین‌پال')
+                ->password()
+                ->revealable()
+                ->visible(fn (Get $get): bool => $get('key') === 'payment.zarinpal.merchant_id')
+                ->helperText(fn (): string => app(SettingsService::class)->get('payment.zarinpal.merchant_id') !== null
+                    ? 'اعتبارنامه تنظیم شده است؛ خالی گذاشتن این فیلد مقدار فعلی را حفظ می‌کند.'
+                    : 'مرچنت آیدی معتبر زرین‌پال را وارد کنید.')
+                ->rule('uuid')
+                ->dehydrated(fn ($state): bool => filled($state))
+                ->nullable(),
             Select::make('value_number')
                 ->label('کلاس مالیاتی پیش‌فرض')
                 ->visible(fn (Get $get): bool => $get('key') === 'default_tax_class_id')
@@ -55,6 +82,19 @@ class SettingForm
                 ->integer()
                 ->minValue(0)
                 ->nullable(),
+            TextInput::make('value_number')
+                ->label(fn (Get $get): string => match ($get('key')) {
+                    'catalog.products_per_page' => 'تعداد محصولات در هر صفحه',
+                    'blog.posts_per_page' => 'تعداد مطالب در هر صفحه',
+                    default => 'تعداد در هر صفحه',
+                })
+                ->visible(fn (Get $get): bool => in_array($get('key'), ['catalog.products_per_page', 'blog.posts_per_page'], true))
+                ->numeric()
+                ->integer()
+                ->minValue(1)
+                ->maxValue(100)
+                ->required()
+                ->helperText('عدد صحیح بین ۱ تا ۱۰۰.'),
             Textarea::make('value_json')
                 ->label('بسته‌بندی‌ها / کارتن‌ها (JSON)')
                 ->visible(fn (Get $get): bool => $get('key') === 'shipping.packages')

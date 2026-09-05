@@ -2,21 +2,25 @@
 
 namespace App\Services\Storefront;
 
+use App\Services\Payments\PaymentGatewayConfiguration;
 use App\Services\Payments\PaymentGatewayRegistry;
 use DomainException;
 
 class StorefrontPaymentGateway
 {
-    public function __construct(private readonly PaymentGatewayRegistry $gateways) {}
+    public function __construct(
+        private readonly PaymentGatewayRegistry $gateways,
+        private readonly PaymentGatewayConfiguration $configuration,
+    ) {}
 
     public function alias(): ?string
     {
-        $alias = config('payment.storefront_gateway');
-        if (! is_string($alias) || trim($alias) === '') {
-            $alias = app()->environment('testing') ? 'fake' : null;
+        if (app()->environment('testing') && $this->gateways->has('fake')) {
+            return 'fake';
         }
 
-        if ($alias === null || ($alias === 'fake' && ! app()->environment(['local', 'testing']))) {
+        $alias = $this->configuration->defaultGateway();
+        if ($alias === null) {
             return null;
         }
 

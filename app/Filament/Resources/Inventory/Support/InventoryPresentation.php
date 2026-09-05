@@ -8,6 +8,7 @@ use App\Models\InventoryReservation;
 use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Services\Inventory\InventoryService;
+use App\Support\PersianNumber;
 use Illuminate\Database\Eloquent\Model;
 
 class InventoryPresentation
@@ -82,7 +83,7 @@ class InventoryPresentation
     {
         $value = (int) $value;
 
-        return ($value > 0 ? '+' : '').number_format($value);
+        return ($value > 0 ? '+' : '').PersianNumber::integer($value);
     }
 
     public static function stockSummary(?Model $owner, InventoryService $inventory): array

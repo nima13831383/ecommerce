@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Coupons;
 use App\Filament\Forms\Components\JalaliDateTimePicker;
 use App\Models\Coupon;
 use App\Support\JalaliDate;
+use App\Support\PersianNumber;
 use BackedEnum;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\EditAction;
@@ -141,8 +142,8 @@ class CouponResource extends Resource
 
                 TextColumn::make('amount')->label('مقدار')
                     ->formatStateUsing(fn ($state, Coupon $record) => $record->type === 'percent'
-                        ? number_format((int) $state).'٪'
-                        : number_format((int) $state).' ریال'),
+                        ? PersianNumber::percentage($state)
+                        : PersianNumber::money($state)),
 
                 TextColumn::make('operational_status')->label('وضعیت عملیاتی')->badge()
                     ->state(fn (Coupon $record): string => self::operationalStatus($record))

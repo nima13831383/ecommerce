@@ -34,17 +34,15 @@ The project is intended to grow into a large-scale production system, so all imp
 
 Do not treat this project as a small CRUD application.
 
-The current main development priority is the **Admin Panel**, implemented with **Filament**.
+The current development spans the **Admin Panel**, commerce domains, the implemented **Laravel Blade SSR storefront**, payment/settings, QA, and production hardening. The admin panel remains implemented with **Filament**.
 
-The storefront/frontend will be implemented later using **Laravel Blade with SSR**.
-
-Do not spend time implementing or redesigning the public storefront until a frontend design/template is explicitly provided.
+The customer storefront is implemented in this Laravel application using Blade SSR. Its raw visual/design source is `D:\uni-shop-project\front`; inspect and preserve that source when making storefront changes.
 
 ---
 
 # Current Development Priority
 
-For now, focus primarily on:
+Current work may span the following areas, while preserving the existing domain boundaries:
 
 ```text
 Admin Panel
@@ -58,6 +56,8 @@ Tax
 Inventory
 Supporting Commerce Domains
 ```
+
+The storefront, ZarinPal payment adapter, Site Settings contract, and their verified runtime tests already exist. Extend them incrementally rather than treating them as future-only work.
 
 Some admin sections already exist, including areas such as:
 
@@ -346,6 +346,12 @@ Never mark an order as paid solely because the browser returned from a gateway.
 Payment confirmation must be based on authoritative server-side verification.
 
 Sensitive payment state changes should be transactional.
+
+### Provider Callback Verification Invariant
+
+Provider callback query parameters are untrusted input. A callback may request verification, but it must never mark a Payment or Order paid merely because it contains `Status=OK`, an Authority, an amount, an order identifier, or any other browser/provider query value. Financial success requires the persisted Payment attempt, its stored Authority matched to the returned Authority, the persisted Payment amount, and a successful authoritative server-side provider Verify response.
+
+Callback handlers must be session-independent where a provider requires it, bound to the intended Payment attempt, and idempotent. Inventory commit and payment-success notifications are downstream only of the successful verified transition; duplicate, malformed, failed, or tampered callbacks must not repeat or create financial side effects.
 
 ---
 
@@ -796,7 +802,7 @@ The current preserved contracts are:
 * `POST /api/v1/auth/logout`
 * `GET /api/v1/auth/me`
 
-The API reports and tests remain part of the project history. There are still no customer HTTP contracts for Cart, Coupon mutations, Address book/geography, Shipping quote, Checkout, Payment, customer Orders, Shipment tracking, customer Notifications, or Blog listing/detail unless a later task adds them.
+The API reports and tests remain part of the project history. Customer storefront capability is provided primarily through Blade SSR; the absence of a dedicated HTTP endpoint for a Blade page does not mean that customer workflow is unavailable. Add separate HTTP contracts only when another consumer, justified AJAX, or an explicit API requirement needs them.
 
 The Blade storefront should not create unnecessary internal HTTP round-trips:
 
@@ -825,7 +831,7 @@ These values remain in Laravel domain services. Do not duplicate `ProductPriceRe
 
 ### Blade Conversion Strategy
 
-When storefront implementation begins, progressively convert the raw template into structures such as:
+For future storefront changes, progressively maintain the raw template conversion in structures such as:
 
 * `resources/views/layouts/...`
 * Blade components
@@ -849,7 +855,7 @@ Blade may render Product attributes and options, and JavaScript may assist selec
 
 ### Cart, Addresses, Shipping, and Checkout
 
-Future Blade Cart pages should call `CartService` through Laravel web controllers and use the authenticated Laravel session/user for ownership. Do not create token API architecture merely for the Blade storefront. Guest-cart behavior should be designed for the Blade/session flow when that phase begins.
+Blade Cart pages call `CartService` through Laravel web controllers and use the authenticated Laravel session/user for ownership. Do not create token API architecture merely for the Blade storefront. Preserve the existing guest-cart/session behavior and document any future merge policy before changing it.
 
 Address and checkout forms must use `AddressService` and the authoritative Shipping Service geography dataset. Province/city choices may be rendered server-side or loaded through a small JSON/AJAX endpoint for dependent selection; never create a parallel geography dataset or unrestricted location values.
 
@@ -857,27 +863,25 @@ Blade Checkout must call backend services directly and submit semantic choices o
 
 ### Payment
 
-No real payment provider has been selected. Keep Payment architecture provider-neutral and do not add a provider until explicitly requested. The provider boundary may later cover initiation, redirect/client instruction, payment state, and server-side verification; the authoritative amount always comes from the Order.
+ZarinPal is the currently implemented real payment provider through the official PHP SDK and the provider-neutral gateway contract. The adapter covers Request, redirect, callback, persisted Authority, server-side Verify, persisted provider reference, and idempotent callbacks. Keep the Payment domain provider-neutral so future providers implement the same contract; the authoritative amount always comes from the Order.
 
-### Implementation Order
+### Current Storefront Status
 
-Unless the user changes priorities, future storefront work should proceed as Blade SSR integration:
+The Laravel Blade SSR storefront is implemented in the same application. Verified areas include:
 
-1. Blade storefront foundation, layouts, and assets
-2. Home page
-3. Product listing/search/filter
-4. Product detail and Variable Product selection
-5. Authentication/account template integration
-6. Cart
-7. Address book and geography
-8. Coupon and Shipping quote UX
-9. Checkout
-10. Payment UX after a provider decision
-11. Orders and Shipment tracking
-12. Blog
-13. Full storefront runtime/browser QA
+* Home
+* Product listing, search, filtering, and sorting
+* Product detail and authoritative Variable Product selection
+* Authentication and account pages
+* Cart and Add-to-Cart
+* Address book and Shipping-compatible geography
+* Coupon and Shipping quote
+* Checkout and Order creation
+* Provider-neutral Payment UX with the implemented ZarinPal adapter
+* Customer Orders, Shipment tracking, Blog, About, FAQ, and static pages
+* Browser and visual QA, with any documented limitations kept explicit
 
-Backend HTTP API phases are not prerequisites for every Blade page. Add API endpoints only when another consumer needs them, AJAX materially benefits UX, or the user explicitly requests an API contract.
+Continue storefront work as incremental Blade SSR maintenance and integration. Backend HTTP APIs are not prerequisites for Blade pages; add endpoints only when another consumer needs them, AJAX materially benefits UX, or the user explicitly requests an API contract.
 
 ### Storefront Contract Testing
 
@@ -889,7 +893,7 @@ For any new customer HTTP contract, add runtime tests for applicable success, va
 
 The following areas have already been verified within their stated scopes and should be reused rather than casually re-audited during ordinary storefront work: core commerce services, MySQL concurrency invariants, Coupon concurrency, Payment concurrency, Checkout idempotency, cancellation/payment race, Shipment concurrency, Notification intent concurrency, Filament Admin Runtime QA, Product media authorization, Product deletion lifecycle, Variable Product generation UI, catalog/admin CRUD, Post admin lifecycle, the Phase 1 Product Catalog API, and the Phase 2A JSON customer authentication boundary.
 
-This context does not authorize implementing storefront pages or missing APIs automatically. Do not add frontend code, customer endpoints, or real providers unless the user explicitly requests that implementation task.
+This context does not authorize unrelated implementation automatically. Do not add frontend code, customer endpoints, or providers unless the user explicitly requests that implementation task.
 
 ## Site Settings Architecture
 
@@ -909,7 +913,15 @@ Application code must not scatter direct `Setting` queries or ad-hoc key literal
 
 Filament Site Settings edits values only. Core keys, groups, and types are read-only metadata; there are no arbitrary create/delete paths. Required configuration gaps must be visible as incomplete/needs-configuration state. Shipping validation remains mode-aware: calculator mode requires the configured single global origin and valid packages, fixed mode uses a non-negative integer Rial amount, and free mode does not require calculator inputs. Do not duplicate shipping or other domain logic in Filament.
 
-Never store environment secrets or credentials in the settings table. Do not bake a temporary development shipping origin/package into universal defaults. Site-specific development values must be configured explicitly and production values confirmed separately. Settings defaults must remain safe and neutral.
+Environment and infrastructure secrets (including `APP_KEY`, database/Redis/filesystem credentials, queue infrastructure, and `APP_URL`) must never move into Site Settings. Do not bake a temporary development shipping origin/package into universal defaults. Site-specific development values must be configured explicitly and production values confirmed separately. Settings defaults must remain safe and neutral.
+
+### Payment Gateway Settings
+
+Customer-facing payment gateway operational configuration belongs in the Core Site Settings contract. Gateway selection, provider enabled state, provider mode, and provider credentials must be registered core definitions, persisted through additive migrations, edited as values only in Filament, and read at runtime only through `SettingsService` or a dedicated runtime resolver that depends on it. Runtime payment code must not query `Setting` directly or treat legacy environment gateway values as its normal authority.
+
+Provider credentials persisted in Site Settings are an explicit exception to the ordinary no-credential rule only when their definition is a secret setting: they must be encrypted at rest through the centralized settings serializer, masked in Filament, and never be rendered, logged, or printed by diagnostics/status commands. Blank masked secret edits preserve the existing credential; migrations create structural rows only and must never insert real credentials. `APP_URL` remains environment infrastructure configuration, and callback URLs continue to be route-generated from it.
+
+Production payment configuration must fail closed whenever its selected gateway is disabled, incomplete, invalid, or unsafe for the environment. New providers must register operational settings through this same contract, with every provider credential explicitly marked secret/encrypted; do not create unused provider rows or fallback to fake gateways in normal production runtime.
 
 Do not manually insert operator settings rows as a permanent workflow. Use the registry migration or `settings:sync`; migrations are additive and non-destructive. Isolated fresh test databases must finish migrations with all registered core rows present. The normal development database `ecommerce` must never be reset or destructively reconstructed to test settings.
 
@@ -1380,7 +1392,7 @@ Current priorities are:
 7. Prepare Orders, Payments, Inventory, and related domains for production-scale behavior.
 8. Use Events, Queues, Scheduler, Cache, and Event Sourcing where they provide real architectural value.
 9. Preserve horizontal scaling compatibility.
-10. Do not develop the final public storefront until its design/template is provided.
+10. Preserve and extend the implemented public storefront using the provided raw template/design source; do not redesign it without an explicit request.
 
 The goal is not merely to make features work.
 

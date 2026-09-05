@@ -92,17 +92,17 @@
                                 <span class="summary-product__media {{ $line['image'] ? '' : 'media-placeholder' }}" aria-hidden="true">
                                     @if ($line['image'])<img src="{{ $line['image']['url'] }}" alt="" loading="lazy">@endif
                                 </span>
-                                <span><strong>{{ $line['name'] }}</strong><small>{{ $line['quantity'] }} × {{ number_format($line['unit_price']) }} ریال</small></span>
-                                <b>{{ number_format($line['line_total']) }} ریال</b>
+                                <span><strong>{{ $line['name'] }}</strong><small>{{ \App\Support\PersianNumber::digits($line['quantity']) }} × {{ \App\Support\PersianNumber::money($line['unit_price']) }}</small></span>
+                                <b>{{ \App\Support\PersianNumber::money($line['line_total']) }}</b>
                             </div>
                         @endforeach
                     </div>
                     <dl>
-                        <div><dt>جمع قیمت کالاها</dt><dd>{{ number_format($subtotal) }} ریال</dd></div>
-                        <div><dt>تخفیف</dt><dd>{{ number_format($discount) }} ریال</dd></div>
-                        <div><dt>مالیات</dt><dd>{{ number_format($tax) }} ریال</dd></div>
-                        <div><dt>هزینه ارسال</dt><dd>{{ number_format($shipping) }} ریال</dd></div>
-                        <div class="summary-total"><dt>مبلغ نهایی</dt><dd>{{ number_format($grandTotal) }} ریال</dd></div>
+                        <div><dt>جمع قیمت کالاها</dt><dd>{{ \App\Support\PersianNumber::money($subtotal) }}</dd></div>
+                        <div><dt>تخفیف</dt><dd>{{ \App\Support\PersianNumber::money($discount) }}</dd></div>
+                        <div><dt>مالیات</dt><dd>{{ \App\Support\PersianNumber::money($tax) }}</dd></div>
+                        <div><dt>هزینه ارسال</dt><dd>{{ \App\Support\PersianNumber::money($shipping) }}</dd></div>
+                        <div class="summary-total"><dt>مبلغ نهایی</dt><dd>{{ \App\Support\PersianNumber::money($grandTotal) }}</dd></div>
                     </dl>
                     @if ($cart['coupon'])<p class="checkout-summary__muted">کد تخفیف: {{ $cart['coupon'] }}</p>@endif
                 </div>

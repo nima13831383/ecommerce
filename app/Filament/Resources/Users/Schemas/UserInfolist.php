@@ -9,6 +9,7 @@ use App\Filament\Resources\Payments\Support\PaymentPresentation;
 use App\Models\Order;
 use App\Models\User;
 use App\Support\JalaliDate;
+use App\Support\PersianNumber;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\RepeatableEntry\TableColumn;
 use Filament\Infolists\Components\TextEntry;
@@ -34,9 +35,9 @@ class UserInfolist
                 TextEntry::make('roles')->label('نقش‌ها')->state(fn (User $record): string => $record->roles->pluck('name')->map(fn (string $role): string => self::roleLabel($role))->implode('، ') ?: 'بدون نقش')->badge(),
             ]),
             Section::make('خلاصه سفارش‌ها')->columns(3)->schema([
-                TextEntry::make('orders_count')->label('تعداد کل سفارش‌ها')->state(fn (User $record): string => number_format((int) ($record->orders_count ?? $record->orders()->count()))),
-                TextEntry::make('paid_orders_count')->label('سفارش‌های پرداخت‌شده')->state(fn (User $record): string => number_format($record->orders->filter(fn ($order): bool => in_array((string) $order->payment_status?->value, ['paid', 'partially_paid'], true))->count()))->helperText('بر اساس سفارش‌های اخیر نمایش‌داده‌شده محاسبه می‌شود.'),
-                TextEntry::make('reconciliation_count')->label('نیازمند تطبیق')->state(fn (User $record): string => number_format($record->orders->flatMap->payments->where('reconciliation_required', true)->count()))->color(fn (User $record): string => $record->orders->flatMap->payments->where('reconciliation_required', true)->isNotEmpty() ? 'danger' : 'gray'),
+                TextEntry::make('orders_count')->label('تعداد کل سفارش‌ها')->state(fn (User $record): string => PersianNumber::integer($record->orders_count ?? $record->orders()->count())),
+                TextEntry::make('paid_orders_count')->label('سفارش‌های پرداخت‌شده')->state(fn (User $record): string => PersianNumber::integer($record->orders->filter(fn ($order): bool => in_array((string) $order->payment_status?->value, ['paid', 'partially_paid'], true))->count()))->helperText('بر اساس سفارش‌های اخیر نمایش‌داده‌شده محاسبه می‌شود.'),
+                TextEntry::make('reconciliation_count')->label('نیازمند تطبیق')->state(fn (User $record): string => PersianNumber::integer($record->orders->flatMap->payments->where('reconciliation_required', true)->count()))->color(fn (User $record): string => $record->orders->flatMap->payments->where('reconciliation_required', true)->isNotEmpty() ? 'danger' : 'gray'),
             ]),
             Section::make('سفارش‌های کاربر')->schema([
                 RepeatableEntry::make('orders')

@@ -20,19 +20,19 @@
                 <img src="{{ $image['url'] }}" alt="{{ $image['alt'] ?: $product['name'] }}" loading="lazy">
             @endif
             @if ($discounted && $discountPercent > 0)
-                <span class="discount">{{ $discountPercent }}٪</span>
+                <span class="discount">{{ \App\Support\PersianNumber::percentage($discountPercent) }}</span>
             @endif
         </div>
         <div class="product-card__body">
             <h3 class="product-card__title">{{ $product['name'] }}</h3>
             @if ($discounted && $regular !== null)
-                <span class="product-card__old">{{ number_format((int) $regular) }} ریال</span>
+                <span class="product-card__old">{{ \App\Support\PersianNumber::money($regular) }}</span>
             @endif
             <div class="product-card__price">
                 @if ($isVariable && $minimum !== null && $maximum !== null && $minimum !== $maximum)
-                    {{ number_format((int) $minimum) }} تا {{ number_format((int) $maximum) }} ریال
+                    {{ \App\Support\PersianNumber::integer($minimum) }} تا {{ \App\Support\PersianNumber::money($maximum) }}
                 @elseif ($effective !== null)
-                    {{ number_format((int) $effective) }} ریال
+                    {{ \App\Support\PersianNumber::money($effective) }}
                 @else
                     —
                 @endif

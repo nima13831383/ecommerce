@@ -6,6 +6,7 @@ use App\Enums\InventoryReservationStatus;
 use App\Enums\PaymentStatus;
 use App\Filament\Resources\Orders\Support\OrderPresentation;
 use App\Models\Payment;
+use App\Support\PersianNumber;
 use App\Support\SafeMetadata;
 
 class PaymentPresentation
@@ -16,7 +17,7 @@ class PaymentPresentation
             return OrderPresentation::money($amount);
         }
 
-        return number_format((int) $amount).' '.($currency ?: '—');
+        return PersianNumber::integer($amount).' '.($currency ?: '—');
     }
 
     public static function status(mixed $status): string

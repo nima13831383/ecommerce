@@ -7,6 +7,7 @@ use App\Filament\Resources\Orders\OrderResource;
 use App\Models\InventoryTransaction;
 use App\Services\Inventory\InventoryService;
 use App\Support\JalaliDate;
+use App\Support\PersianNumber;
 use App\Support\SafeMetadata;
 use Filament\Infolists\Components\TextEntry;
 use Filament\Schemas\Components\Section;
@@ -27,8 +28,8 @@ class InventoryTransactionInfolist
                 TextEntry::make('id')->label('شناسه تراکنش')->copyable(),
                 TextEntry::make('operation')->label('نوع عملیات')->badge()->formatStateUsing(fn (mixed $state): string => InventoryPresentation::operation($state))->color(fn (mixed $state): string => InventoryPresentation::operationColor($state)),
                 TextEntry::make('quantity_delta')->label('مقدار تغییر')->state(fn (InventoryTransaction $record): string => InventoryPresentation::delta($record->quantity_delta)),
-                TextEntry::make('quantity_before')->label('موجودی قبل')->numeric(),
-                TextEntry::make('quantity_after')->label('موجودی بعد')->numeric(),
+                TextEntry::make('quantity_before')->label('موجودی قبل')->formatStateUsing(fn (mixed $state): string => PersianNumber::integer($state)),
+                TextEntry::make('quantity_after')->label('موجودی بعد')->formatStateUsing(fn (mixed $state): string => PersianNumber::integer($state)),
                 TextEntry::make('reference_type')->label('نوع مرجع'),
                 TextEntry::make('reference_id')->label('شناسه مرجع')->copyable(),
                 TextEntry::make('reason')->label('دلیل')->placeholder('ثبت نشده')->prose(),
@@ -46,6 +47,6 @@ class InventoryTransactionInfolist
 
     private static function number(?int $value): ?string
     {
-        return $value === null ? null : number_format($value);
+        return $value === null ? null : PersianNumber::integer($value);
     }
 }

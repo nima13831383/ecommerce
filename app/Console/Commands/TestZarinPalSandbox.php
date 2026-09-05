@@ -2,6 +2,7 @@
 
 namespace App\Console\Commands;
 
+use App\Services\Payments\PaymentGatewayConfiguration;
 use App\Services\Payments\ZarinPalSdkClient;
 use Illuminate\Console\Command;
 use Throwable;
@@ -12,7 +13,7 @@ class TestZarinPalSandbox extends Command
 
     protected $description = 'Run a local-only ZarinPal sandbox payment request (external integration check).';
 
-    public function handle(): int
+    public function handle(PaymentGatewayConfiguration $configuration): int
     {
         if (! app()->environment(['local', 'development', 'testing'])) {
             $this->error('This external sandbox check is allowed only in local, development, or testing environments.');
@@ -21,8 +22,15 @@ class TestZarinPalSandbox extends Command
         }
 
         try {
+            $settings = $configuration->zarinPal();
+            if ($settings === null || ! $settings->sandbox) {
+                $this->error('Sandbox ZarinPal Site Settings are incomplete or unavailable.');
+
+                return self::FAILURE;
+            }
+
             $amount = (int) $this->option('amount');
-            $client = new ZarinPalSdkClient;
+            $client = new ZarinPalSdkClient($settings);
             $response = $client->request(
                 $amount,
                 'Sandbox payment integration check',

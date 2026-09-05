@@ -13,12 +13,12 @@ use App\Services\Orders\OrderService;
 use App\Services\Payments\Data\PaymentVerificationResult;
 use App\Services\Payments\PaymentGatewayRegistry;
 use App\Services\Storefront\StorefrontPaymentGateway;
+use App\Support\PersianNumber;
 use Tests\Support\Payments\FakePaymentGateway;
 
 beforeEach(function (): void {
     $this->fakeGateway = new FakePaymentGateway;
     $this->app->instance(PaymentGatewayRegistry::class, new PaymentGatewayRegistry([$this->fakeGateway]));
-    config(['payment.storefront_gateway' => 'fake']);
 });
 
 function storefrontPaymentProduct(string $suffix = 'default', int $price = 120_000, int $stock = 5): Product
@@ -91,7 +91,6 @@ test('checkout success visibly explains an unavailable configured gateway', func
     $order = storefrontPaymentOrder(storefrontPaymentProduct('unavailable-gateway'));
     $order->forceFill(['user_id' => $user->id])->save();
 
-    config(['payment.storefront_gateway' => 'zarinpal']);
     $this->app->instance(PaymentGatewayRegistry::class, new PaymentGatewayRegistry([]));
 
     $this->actingAs($user)
@@ -116,7 +115,7 @@ test('fake payment return verifies once, commits inventory, and exposes safe res
     $result->assertOk()
         ->assertSee('پرداخت با موفقیت تأیید شد')
         ->assertSee($order->order_number)
-        ->assertSee(number_format($order->grand_total).' ریال')
+        ->assertSee(PersianNumber::money($order->grand_total))
         ->assertDontSee('gateway_response')
         ->assertDontSee('initiation_fingerprint');
 

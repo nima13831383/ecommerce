@@ -2,9 +2,12 @@
 
 @section('bodyClass', 'auth-body')
 
+@section('withoutFooter', 'true')
+
 @section('content')
-    @parent
-    <section class="site-container auth-trust" aria-label="مزایای خرید از لوکسیر"><div class="auth-trust__item"><strong>تضمین اصالت کالا</strong><span>خرید مطمئن</span></div><div class="auth-trust__item"><strong>ارسال سریع</strong><span>تحویل به‌موقع</span></div><div class="auth-trust__item"><strong>پرداخت امن</strong><span>با کارت‌های شتاب</span></div><div class="auth-trust__item"><strong>پشتیبانی همیشگی</strong><span>همراه شما</span></div></section>
+    <section class="auth-page">
+        @yield('auth-content')
+    </section>
 @endsection
 
 @push('head')

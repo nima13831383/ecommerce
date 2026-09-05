@@ -8,6 +8,7 @@ use App\Models\Product;
 use App\Models\ProductImage;
 use App\Services\Catalog\ProductVariantService;
 use App\Services\Inventory\InventoryService;
+use App\Services\Settings\SettingsService;
 use Illuminate\Support\Facades\Storage;
 
 beforeEach(function (): void {
@@ -70,13 +71,14 @@ test('the home page renders current featured products and excludes non-public pr
 
     $this->get('/')->assertOk()
         ->assertSee('Featured Serum')
-        ->assertSee('1,900 ریال')
+        ->assertSee('۱,۹۰۰ ریال')
         ->assertSee('/storage/products/featured.png')
         ->assertDontSee('Hidden Featured')
         ->assertDontSee('Deleted Featured');
 });
 
 test('listing renders cards, filters, sorting, pagination, and a safe empty state', function (): void {
+    app(SettingsService::class)->update('catalog.products_per_page', 1);
     $category = Category::query()->create(['name' => 'پوست', 'slug' => 'skin', 'is_active' => true]);
     $brand = Brand::query()->create(['name' => 'Acme', 'slug' => 'acme', 'is_active' => true]);
     $matching = storefrontProduct('Acme Skin Serum', ['brand_id' => $brand->id, 'price' => 3000]);
@@ -94,7 +96,7 @@ test('listing renders cards, filters, sorting, pagination, and a safe empty stat
     $this->get('/products?category=skin&brand=acme&in_stock=1&sort=price_desc&per_page=1')
         ->assertOk()
         ->assertSee('Acme Skin Serum')
-        ->assertSee('3,000 ریال')
+        ->assertSee('۳,۰۰۰ ریال')
         ->assertSee('/storage/products/serum.png')
         ->assertSee('category-pagination')
         ->assertSee('category=skin')
@@ -106,6 +108,8 @@ test('listing renders cards, filters, sorting, pagination, and a safe empty stat
     $this->get('/products?search=does-not-exist')->assertOk()
         ->assertSee('محصولی پیدا نشد')
         ->assertSee('search');
+
+    app(SettingsService::class)->update('catalog.products_per_page', 10);
 
     $this->get('/products?search=Acme&sort=name_asc')->assertOk()
         ->assertSeeInOrder(['Acme Skin Cream', 'Acme Skin Serum']);
@@ -121,7 +125,7 @@ test('listing supports variable price range and stable query filters', function 
     $this->get('/products?type=variable&min_price=1200&max_price=1400&sort=price_asc')
         ->assertOk()
         ->assertSee('Variable Storefront Product')
-        ->assertSee('1,200 تا 1,400 ریال')
+        ->assertSee('۱,۲۰۰ تا ۱,۴۰۰ ریال')
         ->assertSee('موجود');
 
     $this->get('/products?sort=price_desc')->assertOk()

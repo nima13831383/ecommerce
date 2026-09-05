@@ -72,11 +72,24 @@ class PaymentController extends Controller
         $error = null;
 
         $callbackAuthority = $request->query('Authority');
+        $callbackStatus = strtoupper((string) $request->query('Status', ''));
+
+        if ($model->gateway === 'zarinpal') {
+            if (! is_string($callbackAuthority) || $callbackAuthority === '' || ! hash_equals((string) $model->authority, $callbackAuthority)) {
+                return $this->resultView($model, 'اطلاعات بازگشت پرداخت معتبر نیست.');
+            }
+
+            if ($callbackStatus !== 'OK') {
+                session()->forget($this->sessionKey((int) $model->order_id));
+
+                return $this->resultView($model, 'پرداخت توسط درگاه تکمیل نشد.');
+            }
+        }
+
         if (is_string($callbackAuthority) && $callbackAuthority !== '' && ! hash_equals((string) $model->authority, $callbackAuthority)) {
             return $this->resultView($model, 'اطلاعات بازگشت پرداخت معتبر نیست.');
         }
 
-        $callbackStatus = strtoupper((string) $request->query('Status', ''));
         if ($callbackStatus !== '' && $callbackStatus !== 'OK') {
             session()->forget($this->sessionKey((int) $model->order_id));
 

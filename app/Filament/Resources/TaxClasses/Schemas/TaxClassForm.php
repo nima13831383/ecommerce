@@ -4,6 +4,7 @@ namespace App\Filament\Resources\TaxClasses\Schemas;
 
 use App\Enums\TaxType;
 use App\Models\TaxClass;
+use App\Support\PersianNumber;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -80,10 +81,10 @@ class TaxClassForm
     public static function formatValue(TaxClass $taxClass): string
     {
         if (TaxType::parse($taxClass->type) === TaxType::Percent) {
-            return rtrim(rtrim((string) $taxClass->value, '0'), '.').'%';
+            return PersianNumber::digits(rtrim(rtrim((string) $taxClass->value, '0'), '.')).'٪';
         }
 
-        return number_format((int) $taxClass->value).' ریال';
+        return PersianNumber::money($taxClass->value);
     }
 
     public static function slugFor(?string $name): string

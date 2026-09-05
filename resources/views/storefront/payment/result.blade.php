@@ -34,7 +34,7 @@
                 <dl class="result-card">
                     <div><dt>شماره سفارش</dt><dd>{{ $payment['order_number'] }}</dd></div>
                     <div><dt>وضعیت پرداخت</dt><dd>{{ $payment['status'] }}</dd></div>
-                    <div><dt>مبلغ</dt><dd>{{ number_format($payment['amount']) }} ریال</dd></div>
+                    <div><dt>مبلغ</dt><dd>{{ \App\Support\PersianNumber::money($payment['amount']) }}</dd></div>
                 </dl>
                 <div class="status-actions">
                     @if ($state === 'failed')

@@ -64,6 +64,35 @@ test('the real Filament edit path updates a known typed setting through Settings
         ->and($setting->fresh()->typed_value)->toBe($taxClass->id);
 });
 
+test('the real Filament settings form edits persisted archive page sizes only as integers', function (): void {
+    $editor = settingsAdmin(['settings.view', 'settings.update']);
+    $setting = Setting::query()->where('key', 'catalog.products_per_page')->firstOrFail();
+
+    Livewire::actingAs($editor, 'web')
+        ->test(EditSetting::class, ['record' => $setting->getRouteKey()])
+        ->fillForm(['value_number' => '6'], 'form')
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($setting->fresh()->typed_value)->toBe(6);
+
+    $blogSetting = Setting::query()->where('key', 'blog.posts_per_page')->firstOrFail();
+
+    Livewire::actingAs($editor, 'web')
+        ->test(EditSetting::class, ['record' => $blogSetting->getRouteKey()])
+        ->fillForm(['value_number' => '7'], 'form')
+        ->call('save')
+        ->assertHasNoFormErrors();
+
+    expect($blogSetting->fresh()->typed_value)->toBe(7);
+
+    Livewire::actingAs($editor, 'web')
+        ->test(EditSetting::class, ['record' => $setting->getRouteKey()])
+        ->fillForm(['value_number' => '0'], 'form')
+        ->call('save')
+        ->assertHasFormErrors(['value_number']);
+});
+
 test('unknown existing settings remain inspectable but cannot be updated', function (): void {
     $editor = settingsAdmin(['settings.view', 'settings.update']);
     $setting = Setting::query()->create([

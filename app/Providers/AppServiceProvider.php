@@ -10,8 +10,8 @@ use App\Events\CustomerLifecycle\ShipmentReady;
 use App\Events\CustomerLifecycle\ShipmentShipped;
 use App\Listeners\Notifications\CreateCustomerLifecycleNotification;
 use App\Models\User;
-use App\Services\Payments\FakePaymentGateway;
 use App\Services\Payments\PaymentCallbackSigner;
+use App\Services\Payments\PaymentGatewayConfiguration;
 use App\Services\Payments\PaymentGatewayRegistry;
 use App\Services\Payments\ZarinPalPaymentGateway;
 use App\Services\Payments\ZarinPalSdkClient;
@@ -30,30 +30,16 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        $this->app->singleton(PaymentGatewayRegistry::class, function (): PaymentGatewayRegistry {
+        $this->app->bind(PaymentGatewayRegistry::class, function (): PaymentGatewayRegistry {
             $gateways = [];
 
-            if (app()->environment(['local', 'testing'])) {
-                $gateways[] = new FakePaymentGateway;
-            }
-
-            if ($this->validZarinPalConfiguration()) {
-                $gateways[] = new ZarinPalPaymentGateway(new ZarinPalSdkClient, new PaymentCallbackSigner);
+            $zarinPal = app(PaymentGatewayConfiguration::class)->zarinPal();
+            if ($zarinPal !== null) {
+                $gateways[] = new ZarinPalPaymentGateway(new ZarinPalSdkClient($zarinPal), new PaymentCallbackSigner);
             }
 
             return new PaymentGatewayRegistry($gateways);
         });
-    }
-
-    private function validZarinPalConfiguration(): bool
-    {
-        $merchantId = strtolower(trim((string) config('payment.gateways.zarinpal.merchant_id')));
-
-        if (app()->isProduction() && (bool) config('payment.gateways.zarinpal.sandbox', false)) {
-            return false;
-        }
-
-        return (bool) preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/', $merchantId);
     }
 
     /**

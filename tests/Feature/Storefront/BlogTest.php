@@ -53,7 +53,7 @@ test('blog listing paginates, returns an empty state, and article detail uses un
 
     $this->get(route('storefront.blog.index', ['page' => 2]))
         ->assertOk()
-        ->assertSee('صفحه‌بندی محصولات');
+        ->assertSee('article-pagination');
     $this->get(route('storefront.blog.index', ['search' => 'غیرممکن']))
         ->assertOk()
         ->assertSee('مقاله‌ای پیدا نشد');

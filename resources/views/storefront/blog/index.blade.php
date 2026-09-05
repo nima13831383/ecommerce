@@ -31,7 +31,7 @@
                 <div class="empty-state"><h2>مقاله‌ای پیدا نشد.</h2><p>در حال حاضر مطلبی با این فیلتر منتشر نشده است.</p></div>
             @endforelse
         </div>
-        {{ $posts->links('storefront.components.pagination') }}
+        @include('storefront.components.pagination', ['paginator' => $posts, 'variant' => 'article'])
     </div></div>
 @endsection
 

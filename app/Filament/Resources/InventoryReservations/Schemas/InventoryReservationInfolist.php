@@ -7,6 +7,7 @@ use App\Filament\Resources\Orders\OrderResource;
 use App\Models\InventoryReservation;
 use App\Services\Inventory\InventoryService;
 use App\Support\JalaliDate;
+use App\Support\PersianNumber;
 use App\Support\SafeMetadata;
 use Filament\Infolists\Components\RepeatableEntry;
 use Filament\Infolists\Components\TextEntry;
@@ -59,6 +60,6 @@ class InventoryReservationInfolist
 
     private static function number(?int $value): ?string
     {
-        return $value === null ? null : number_format($value);
+        return $value === null ? null : PersianNumber::integer($value);
     }
 }

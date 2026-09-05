@@ -9,7 +9,7 @@
             <p>شماره سفارش: <strong>{{ $order->order_number }}</strong></p>
             <p>وضعیت سفارش: <strong>{{ $order->status->value }}</strong></p>
             <p>وضعیت پرداخت: <strong>{{ $order->payment_status->value }}</strong></p>
-            <p>مبلغ نهایی: <strong>{{ number_format((int) $order->grand_total) }} ریال</strong></p>
+            <p>مبلغ نهایی: <strong>{{ \App\Support\PersianNumber::money($order->grand_total) }}</strong></p>
             @if ($errors->has('payment'))
                 <p class="storefront-alert storefront-alert--error" role="alert">{{ $errors->first('payment') }}</p>
             @endif

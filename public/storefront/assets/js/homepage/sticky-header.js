@@ -9,8 +9,10 @@
   const mediaQuery = window.matchMedia('(min-width: 901px)');
   const scrollRoot = document.scrollingElement || document.documentElement;
   const getScrollTop = () => Math.max(window.scrollY, scrollRoot.scrollTop, document.body?.scrollTop || 0);
-  let lastScroll = getScrollTop();
   let frame = null;
+  let collapsed = false;
+  const collapseAt = 72;
+  const expandAt = 24;
 
   function showAll() {
     $announcement.removeClass('is-hidden');
@@ -21,30 +23,24 @@
   function update() {
     frame = null;
     const current = getScrollTop();
-    const delta = current - lastScroll;
     $header.toggleClass('is-stuck', current > 4);
-    if (current <= 12) {
+    if (!collapsed && current >= collapseAt) collapsed = true;
+    if (collapsed && current <= expandAt) collapsed = false;
+
+    if (!collapsed) {
       showAll();
     } else if (mediaQuery.matches) {
-      if (delta < -10 && $lowerDesktopNav.hasClass('is-hidden')) showAll();
-      else if (!$lowerDesktopNav.hasClass('is-hidden')) {
-        $lowerDesktopNav.addClass('is-hidden');
-      }
-    } else if (!$mobileMenuButton.attr('aria-expanded') || $mobileMenuButton.attr('aria-expanded') === 'false') {
-      if (delta < -10 && $announcement.hasClass('is-hidden') && $mobileSearch.hasClass('is-hidden')) showAll();
-      else if (!$announcement.hasClass('is-hidden') || !$mobileSearch.hasClass('is-hidden')) {
-        $announcement.addClass('is-hidden');
-        $mobileSearch.addClass('is-hidden');
-      }
+      $lowerDesktopNav.addClass('is-hidden');
+    } else if ($mobileMenuButton.attr('aria-expanded') !== 'true') {
+      $announcement.addClass('is-hidden');
+      $mobileSearch.addClass('is-hidden');
     }
-    lastScroll = current;
   }
 
   function requestUpdate() {
     if (frame === null) frame = window.requestAnimationFrame(update);
   }
   window.addEventListener('scroll', requestUpdate, { passive: true });
-  document.addEventListener('scroll', requestUpdate, { passive: true });
   mediaQuery.addEventListener('change', function () { showAll(); update(); });
   update();
 }(window.jQuery));

@@ -1,6 +1,6 @@
 @extends('storefront.layouts.auth')
 
-@section('content')
+@section('auth-content')
     <div class="auth-container auth-shell">
         <section class="auth-card" aria-labelledby="forgot-title">
             <h1 id="forgot-title">بازیابی رمز عبور</h1>

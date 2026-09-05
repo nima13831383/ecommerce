@@ -6,6 +6,7 @@ use App\Models\Product;
 use App\Models\ProductImage;
 use App\Models\User;
 use App\Services\Payments\FakePaymentGateway;
+use App\Services\Payments\PaymentGatewayConfiguration;
 use App\Services\Payments\PaymentGatewayRegistry;
 use App\Services\Storefront\StorefrontPaymentGateway;
 use Illuminate\Console\Command;
@@ -111,9 +112,8 @@ test('public media reconciliation is dry-run safe, copies recognized records, an
 });
 
 test('fake payment gateway is unavailable in production even when configured by alias', function (): void {
-    $service = new StorefrontPaymentGateway(new PaymentGatewayRegistry([new FakePaymentGateway]));
+    $service = new StorefrontPaymentGateway(new PaymentGatewayRegistry([new FakePaymentGateway]), app(PaymentGatewayConfiguration::class));
     $originalEnvironment = app()->environment();
-    config()->set('payment.storefront_gateway', 'fake');
     app()->detectEnvironment(fn (): string => 'production');
 
     try {

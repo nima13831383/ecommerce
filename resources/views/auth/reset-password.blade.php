@@ -1,6 +1,6 @@
 @extends('storefront.layouts.auth')
 
-@section('content')
+@section('auth-content')
     <div class="auth-container auth-shell">
         <section class="auth-card" aria-labelledby="reset-title">
             <h1 id="reset-title">تنظیم رمز عبور جدید</h1>
@@ -12,10 +12,10 @@
                     <span class="auth-input-wrap"><input id="email" name="email" type="email" value="{{ old('email', $request->email) }}" required autocomplete="username"></span>
                 </label>
                 <label class="auth-field" for="password">رمز عبور جدید
-                    <span class="auth-input-wrap"><input id="password" name="password" type="password" required autocomplete="new-password"></span>
+                    <span class="auth-input-wrap password-wrap"><input id="password" name="password" type="password" required autocomplete="new-password"><button class="password-toggle" type="button" data-password-toggle aria-controls="password" aria-label="نمایش رمز عبور"><svg aria-hidden="true"><use href="#i-eye"></use></svg></button></span>
                 </label>
                 <label class="auth-field" for="password_confirmation">تکرار رمز عبور
-                    <span class="auth-input-wrap"><input id="password_confirmation" name="password_confirmation" type="password" required autocomplete="new-password"></span>
+                    <span class="auth-input-wrap password-wrap"><input id="password_confirmation" name="password_confirmation" type="password" required autocomplete="new-password"><button class="password-toggle" type="button" data-password-toggle aria-controls="password_confirmation" aria-label="نمایش تکرار رمز عبور"><svg aria-hidden="true"><use href="#i-eye"></use></svg></button></span>
                 </label>
                 <button class="auth-submit" type="submit">ذخیره رمز عبور</button>
             </form>

@@ -75,15 +75,15 @@
                     <div class="product-price-box" data-product-pricing>
                         <span class="product-price" data-price>
                             @if ($isVariable && $minimumPrice !== null && $maximumPrice !== null && $minimumPrice !== $maximumPrice)
-                                {{ number_format((int) $minimumPrice) }} تا {{ number_format((int) $maximumPrice) }} ریال
+                                {{ \App\Support\PersianNumber::integer($minimumPrice) }} تا {{ \App\Support\PersianNumber::money($maximumPrice) }}
                             @elseif ($effectivePrice !== null)
-                                {{ number_format((int) $effectivePrice) }} ریال
+                                {{ \App\Support\PersianNumber::money($effectivePrice) }}
                             @else
                                 —
                             @endif
                         </span>
                         <span class="product-old-price" data-regular-price @if (! $hasDiscount || $regularPrice === null) hidden @endif>
-                            @if ($hasDiscount && $regularPrice !== null){{ number_format((int) $regularPrice) }} ریال @endif
+                            @if ($hasDiscount && $regularPrice !== null){{ \App\Support\PersianNumber::money($regularPrice) }} @endif
                         </span>
                         <span class="product-discount" data-discount @if (! $hasDiscount) hidden @endif>تخفیف</span>
                     </div>

@@ -20,7 +20,7 @@ final class JalaliDate
         $local = $date instanceof CarbonInterface ? $date->copy()->setTimezone($timezone) : (new \DateTimeImmutable($date->format('c')))->setTimezone($timezone);
         [$year, $month, $day] = self::toJalali((int) $local->format('Y'), (int) $local->format('n'), (int) $local->format('j'));
 
-        return strtr($format, ['Y' => (string) $year, 'y' => substr((string) $year, -2), 'm' => str_pad((string) $month, 2, '0', STR_PAD_LEFT), 'n' => (string) $month, 'd' => str_pad((string) $day, 2, '0', STR_PAD_LEFT), 'j' => (string) $day, 'F' => self::MONTHS[$month], 'H' => $local->format('H'), 'i' => $local->format('i'), 's' => $local->format('s')]);
+        return PersianNumber::digits(self::formatCanonical($local, $format, $year, $month, $day));
     }
 
     public static function forPicker(DateTimeInterface|string|null $date, bool $withTime = true): ?string
@@ -31,7 +31,11 @@ final class JalaliDate
 
         $date = is_string($date) ? CarbonImmutable::parse($date, config('app.timezone', 'Asia/Tehran')) : $date;
 
-        return self::format($date, $withTime ? 'Y/m/d H:i' : 'Y/m/d');
+        $timezone = new \DateTimeZone(config('app.timezone', 'Asia/Tehran'));
+        $local = $date instanceof CarbonInterface ? $date->copy()->setTimezone($timezone) : (new \DateTimeImmutable($date->format('c')))->setTimezone($timezone);
+        [$year, $month, $day] = self::toJalali((int) $local->format('Y'), (int) $local->format('n'), (int) $local->format('j'));
+
+        return self::formatCanonical($local, $withTime ? 'Y/m/d H:i' : 'Y/m/d', $year, $month, $day);
     }
 
     public static function toGregorian(?string $value, bool $withTime = true): ?string
@@ -74,6 +78,11 @@ final class JalaliDate
     private static function normalizeDigits(string $value): string
     {
         return strtr($value, ['۰' => '0', '۱' => '1', '۲' => '2', '۳' => '3', '۴' => '4', '۵' => '5', '۶' => '6', '۷' => '7', '۸' => '8', '۹' => '9', '٠' => '0', '١' => '1', '٢' => '2', '٣' => '3', '٤' => '4', '٥' => '5', '٦' => '6', '٧' => '7', '٨' => '8', '٩' => '9']);
+    }
+
+    private static function formatCanonical(DateTimeInterface $local, string $format, int $year, int $month, int $day): string
+    {
+        return strtr($format, ['Y' => (string) $year, 'y' => substr((string) $year, -2), 'm' => str_pad((string) $month, 2, '0', STR_PAD_LEFT), 'n' => (string) $month, 'd' => str_pad((string) $day, 2, '0', STR_PAD_LEFT), 'j' => (string) $day, 'F' => self::MONTHS[$month], 'H' => $local->format('H'), 'i' => $local->format('i'), 's' => $local->format('s')]);
     }
 
     /** @return array{0:int,1:int,2:int} */

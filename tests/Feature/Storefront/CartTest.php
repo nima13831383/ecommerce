@@ -101,9 +101,9 @@ test('guest can add a simple product through the detail form and sees authoritat
     $this->get(route('storefront.cart.show'))
         ->assertOk()
         ->assertSee('Guest Cart Product')
-        ->assertSee('5,000 ریال')
+        ->assertSee('۵,۰۰۰ ریال')
         ->assertSee('data-cart-count', false)
-        ->assertSee('2 کالا');
+        ->assertSee('۲ کالا');
 });
 
 test('authenticated customers receive an owned cart and cannot tamper with another cart line', function (): void {

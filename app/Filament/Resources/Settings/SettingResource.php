@@ -4,6 +4,7 @@ namespace App\Filament\Resources\Settings;
 
 use App\Filament\Resources\Settings\Schemas\SettingForm;
 use App\Models\Setting;
+use App\Settings\SettingRegistry;
 use App\Support\JalaliDate;
 use BackedEnum;
 use Filament\Actions\EditAction;
@@ -54,13 +55,31 @@ class SettingResource extends Resource
             ->defaultGroup('group')
             ->defaultSort('key')
             ->columns([
-                TextColumn::make('group')->label('گروه')->badge()->sortable(),
+                TextColumn::make('group')->label('گروه')->badge()->sortable()
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'catalog' => 'فروشگاه',
+                        'blog' => 'مجله',
+                        'shipping' => 'ارسال',
+                        'tax' => 'مالیات',
+                        'payment' => 'پرداخت',
+                        default => $state,
+                    }),
                 TextColumn::make('key')->label('کلید داخلی')->searchable()->copyable(),
                 TextColumn::make('value_state')
                     ->label('وضعیت مقدار')
-                    ->state(fn (Setting $record): string => filled($record->value) ? 'ثبت شده' : 'خالی')
+                    ->state(function (Setting $record): string {
+                        $definition = SettingRegistry::has($record->key)
+                            ? SettingRegistry::get($record->key)
+                            : null;
+
+                        if ($definition?->secret) {
+                            return filled($record->value) ? 'پیکربندی شده' : 'نیاز به تنظیم';
+                        }
+
+                        return filled($record->value) ? 'ثبت شده' : 'خالی';
+                    })
                     ->badge()
-                    ->color(fn (string $state): string => $state === 'ثبت شده' ? 'success' : 'warning'),
+                    ->color(fn (string $state): string => in_array($state, ['ثبت شده', 'پیکربندی شده'], true) ? 'success' : 'warning'),
                 TextColumn::make('type')
                     ->label('نوع')
                     ->badge()

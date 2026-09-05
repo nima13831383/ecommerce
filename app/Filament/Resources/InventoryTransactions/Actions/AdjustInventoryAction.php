@@ -8,6 +8,7 @@ use App\Filament\Resources\Inventory\Support\InventoryPresentation;
 use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Services\Inventory\InventoryService;
+use App\Support\PersianNumber;
 use Filament\Actions\Action;
 use Filament\Forms\Components\Placeholder;
 use Filament\Forms\Components\Select;
@@ -167,7 +168,7 @@ class AdjustInventoryAction
 
         $summary = InventoryPresentation::stockSummary($owner, app(InventoryService::class));
 
-        return sprintf('مالک: %s | فیزیکی: %s | رزروشده: %s | قابل فروش: %s', InventoryPresentation::ownerLabel($owner), number_format($summary['on_hand']), number_format($summary['reserved']), number_format($summary['available']));
+        return sprintf('مالک: %s | فیزیکی: %s | رزروشده: %s | قابل فروش: %s', InventoryPresentation::ownerLabel($owner), PersianNumber::integer($summary['on_hand']), PersianNumber::integer($summary['reserved']), PersianNumber::integer($summary['available']));
     }
 
     private static function deltaPreview(Get $get): string

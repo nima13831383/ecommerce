@@ -14,7 +14,7 @@
                     <h1 id="category-title">محصولات</h1>
                     <p>محصولات منتخب لوکسیر را جست‌وجو و بررسی کنید.</p>
                 </div>
-                <span class="category-heading__count">نمایش {{ $paginator->firstItem() ?? 0 }}–{{ $paginator->lastItem() ?? 0 }} از {{ $paginator->total() }} محصول</span>
+                <span class="category-heading__count">نمایش {{ \App\Support\PersianNumber::digits($paginator->firstItem() ?? 0) }}–{{ \App\Support\PersianNumber::digits($paginator->lastItem() ?? 0) }} از {{ \App\Support\PersianNumber::digits($paginator->total()) }} محصول</span>
             </section>
             @php($activeCategories = (array) ($filters['categories'] ?? ($filters['category'] ?? [])))
             @php($activeBrands = (array) ($filters['brands'] ?? ($filters['brand'] ?? [])))
@@ -57,7 +57,7 @@
                         <div class="category-toolbar__mobile"><button class="category-mobile-button" type="button" data-filter-open aria-controls="category-filter-drawer" aria-expanded="false">فیلترها</button><div class="category-sort"><label for="mobile-sort">مرتب‌سازی</label><select id="mobile-sort" name="sort" form="product-sort-form" onchange="document.getElementById('product-sort-form').submit()">
                             <option value="newest" @selected(($filters['sort'] ?? 'newest') === 'newest')>جدیدترین</option><option value="price_asc" @selected(($filters['sort'] ?? null) === 'price_asc')>ارزان‌ترین</option><option value="price_desc" @selected(($filters['sort'] ?? null) === 'price_desc')>گران‌ترین</option><option value="name_asc" @selected(($filters['sort'] ?? null) === 'name_asc')>الفبا (صعودی)</option><option value="name_desc" @selected(($filters['sort'] ?? null) === 'name_desc')>الفبا (نزولی)</option>
                         </select></div></div>
-                        <span class="category-result" id="products-title">{{ $paginator->total() }} محصول</span>
+                        <span class="category-result" id="products-title">{{ \App\Support\PersianNumber::digits($paginator->total()) }} محصول</span>
                         <div class="category-sort category-sort--desktop"><label for="desktop-sort">مرتب‌سازی:</label><select id="desktop-sort" name="sort" form="product-sort-form">
                             <option value="newest" @selected(($filters['sort'] ?? 'newest') === 'newest')>جدیدترین</option><option value="price_asc" @selected(($filters['sort'] ?? null) === 'price_asc')>ارزان‌ترین</option><option value="price_desc" @selected(($filters['sort'] ?? null) === 'price_desc')>گران‌ترین</option><option value="name_asc" @selected(($filters['sort'] ?? null) === 'name_asc')>الفبا (صعودی)</option><option value="name_desc" @selected(($filters['sort'] ?? null) === 'name_desc')>الفبا (نزولی)</option>
                         </select></div>

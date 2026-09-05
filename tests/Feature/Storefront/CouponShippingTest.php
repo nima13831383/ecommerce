@@ -146,7 +146,7 @@ test('shipping quote uses owned address and fixed/free server modes without side
 
     $this->get(route('storefront.cart.show'))
         ->assertOk()
-        ->assertSee('250')
+        ->assertSee('۲۵۰')
         ->assertSee('shipping-quote-result', false);
 
     $settings->update('shipping.mode', 'free');

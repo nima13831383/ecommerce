@@ -7,12 +7,13 @@ use App\Enums\OrderPaymentStatus;
 use App\Enums\OrderStatus;
 use App\Enums\PaymentStatus;
 use App\Models\Order;
+use App\Support\PersianNumber;
 
 class OrderPresentation
 {
     public static function money(mixed $amount): string
     {
-        return number_format((int) $amount).' ریال';
+        return PersianNumber::money($amount);
     }
 
     public static function orderStatus(mixed $status): string

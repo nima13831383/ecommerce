@@ -95,7 +95,7 @@ test('guest checkout is redirected and authenticated checkout renders authoritat
     $response->assertOk()
         ->assertSee('تسویه حساب')
         ->assertSee($product->name)
-        ->assertSee(number_format(125_000).' ریال')
+        ->assertSee('۱۲۵,۰۰۰ ریال')
         ->assertSee('name="idempotency_key"', false)
         ->assertSee((string) $address->id, false);
     expect(Order::count())->toBe(0)

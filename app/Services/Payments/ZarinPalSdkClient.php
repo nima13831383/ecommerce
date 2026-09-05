@@ -13,18 +13,17 @@ class ZarinPalSdkClient implements ZarinPalClientInterface
 {
     private PaymentGateway $gateway;
 
-    public function __construct()
+    public function __construct(ZarinPalGatewaySettings $settings)
     {
-        $config = config('payment.gateways.zarinpal', []);
-        $merchantId = strtolower(trim((string) ($config['merchant_id'] ?? '')));
+        $merchantId = strtolower(trim($settings->merchantId));
 
-        if (! preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/', $merchantId)) {
+        if (! PaymentGatewayConfiguration::validMerchantId($merchantId)) {
             throw new \InvalidArgumentException('ZarinPal merchant_id must be a valid UUID.');
         }
 
         $sdk = new ZarinPal(new Options([
             'merchant_id' => $merchantId,
-            'sandbox' => (bool) ($config['sandbox'] ?? false),
+            'sandbox' => $settings->sandbox,
         ]));
 
         $this->gateway = $sdk->paymentGateway();

@@ -16,6 +16,7 @@ final readonly class SettingDefinition
         public string $label,
         public array $rules = [],
         public bool $sensitive = false,
+        public bool $secret = false,
         public bool $nullable = false,
         public ?string $description = null,
         public array $options = [],

@@ -11,6 +11,24 @@ final class SettingRegistry
     public static function definitions(): array
     {
         return [
+            'catalog.products_per_page' => new SettingDefinition(
+                key: 'catalog.products_per_page',
+                group: 'catalog',
+                type: 'integer',
+                default: 10,
+                label: 'تعداد محصولات در هر صفحه',
+                rules: ['required', 'integer', 'min:1', 'max:100'],
+                description: 'تعداد محصولات نمایش‌داده‌شده در هر صفحه از آرشیو فروشگاه.',
+            ),
+            'blog.posts_per_page' => new SettingDefinition(
+                key: 'blog.posts_per_page',
+                group: 'blog',
+                type: 'integer',
+                default: 10,
+                label: 'تعداد مطالب در هر صفحه',
+                rules: ['required', 'integer', 'min:1', 'max:100'],
+                description: 'تعداد مطالب نمایش‌داده‌شده در هر صفحه از آرشیو مجله.',
+            ),
             'default_tax_class_id' => new SettingDefinition(
                 key: 'default_tax_class_id',
                 group: 'tax',
@@ -72,6 +90,46 @@ final class SettingRegistry
                 label: 'بسته‌بندی‌ها / کارتن‌ها',
                 rules: ['array'],
                 description: 'بسته‌بندی‌های فعال مورد استفاده محاسبه‌گر ارسال.',
+            ),
+            'payment.default_gateway' => new SettingDefinition(
+                key: 'payment.default_gateway',
+                group: 'payment',
+                type: 'string',
+                default: null,
+                label: 'درگاه پرداخت پیش‌فرض',
+                rules: ['nullable', Rule::in(['zarinpal'])],
+                nullable: true,
+                description: 'درگاه پرداخت فعال فروشگاه. تا زمان تکمیل تنظیمات، پرداخت غیرفعال می‌ماند.',
+                options: ['zarinpal' => 'زرین‌پال'],
+            ),
+            'payment.zarinpal.enabled' => new SettingDefinition(
+                key: 'payment.zarinpal.enabled',
+                group: 'payment',
+                type: 'boolean',
+                default: false,
+                label: 'فعال بودن زرین‌پال',
+                rules: ['required', 'boolean'],
+                description: 'فعال‌سازی تنها پس از ثبت مرچنت آیدی معتبر و انتخاب زرین‌پال ممکن است.',
+            ),
+            'payment.zarinpal.sandbox' => new SettingDefinition(
+                key: 'payment.zarinpal.sandbox',
+                group: 'payment',
+                type: 'boolean',
+                default: false,
+                label: 'حالت آزمایشی زرین‌پال',
+                rules: ['required', 'boolean'],
+                description: 'فقط برای محیط توسعه/آزمایش استفاده شود.',
+            ),
+            'payment.zarinpal.merchant_id' => new SettingDefinition(
+                key: 'payment.zarinpal.merchant_id',
+                group: 'payment',
+                type: 'string',
+                default: null,
+                label: 'مرچنت آیدی زرین‌پال',
+                rules: ['nullable', 'uuid'],
+                secret: true,
+                nullable: true,
+                description: 'اعتبارنامه رمزنگاری‌شده زرین‌پال؛ مقدار فعلی هرگز نمایش داده نمی‌شود.',
             ),
         ];
     }

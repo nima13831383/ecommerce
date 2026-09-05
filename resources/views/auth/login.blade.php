@@ -1,6 +1,6 @@
 @extends('storefront.layouts.auth')
 
-@section('content')
+@section('auth-content')
     <div class="auth-container auth-shell">
         <section class="auth-card" aria-labelledby="login-title">
             <div class="auth-card__icon" aria-hidden="true">🔒</div>
@@ -26,7 +26,7 @@
                 <label class="auth-field" for="password">رمز عبور
                     <span class="auth-input-wrap password-wrap">
                         <input id="password" name="password" type="password" required autocomplete="current-password">
-                        <button class="password-toggle" type="button" data-password-toggle aria-controls="password" aria-label="نمایش رمز عبور">◉</button>
+                        <button class="password-toggle" type="button" data-password-toggle aria-controls="password" aria-label="نمایش رمز عبور"><svg aria-hidden="true"><use href="#i-eye"></use></svg></button>
                     </span>
                 </label>
                 <div class="auth-row">
