@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use App\Enums\InventoryReservationStatus;
+use App\Services\Catalog\ProductSlugService;
 use App\Services\Settings\SettingsService;
 use App\Services\Tax\TaxCalculator;
 use DomainException;
@@ -18,8 +19,26 @@ class Product extends Model
 {
     use SoftDeletes;
 
+    /** @var array<string, mixed>|null */
+    public ?array $storefrontCachePrevious = null;
+
     protected static function booted(): void
     {
+        static::saving(function (self $product): void {
+            if (filled($product->slug)) {
+                return;
+            }
+
+            $product->slug = app(ProductSlugService::class)->generate((string) $product->name, $product->exists ? $product->getKey() : null);
+        });
+
+        static::updating(function (self $product): void {
+            $product->storefrontCachePrevious = [
+                'slug' => $product->getOriginal('slug'),
+                'status' => $product->getOriginal('status'),
+            ];
+        });
+
         static::deleting(function (self $product): void {
             if (! $product->isForceDeleting()) {
                 return;

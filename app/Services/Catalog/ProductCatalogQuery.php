@@ -2,18 +2,93 @@
 
 namespace App\Services\Catalog;
 
+use App\Enums\CacheRebuildDomain;
 use App\Models\Brand;
 use App\Models\InventoryReservation;
 use App\Models\Product;
 use App\Models\ProductVariation;
+use App\Services\Storefront\StorefrontQueryCache;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Collection;
 
 class ProductCatalogQuery
 {
+    public function __construct(private readonly StorefrontQueryCache $cache) {}
+
     public function paginate(array $filters): LengthAwarePaginator
     {
-        $query = Product::query()
+        $filters = $this->normalizeArchiveFilters($filters);
+        if ($this->requiresLiveListing($filters)) {
+            return $this->paginateUncached($filters);
+        }
+
+        return $this->refreshLiveInventory($this->cache->remember(
+            CacheRebuildDomain::Products,
+            'archive',
+            $filters,
+            fn (): LengthAwarePaginator => $this->paginateUncached($filters),
+        ));
+    }
+
+    private function normalizeArchiveFilters(array $filters): array
+    {
+        $filters = array_filter($filters, static fn (mixed $value): bool => $value !== null && $value !== '');
+        $filters['per_page'] = (int) ($filters['per_page'] ?? 24);
+        $filters['page'] = (int) ($filters['page'] ?? 1);
+        $filters['sort'] = $filters['sort'] ?? 'newest';
+
+        return $filters;
+    }
+
+    public function findPublicBySlug(string $slug): ?Product
+    {
+        return $this->refreshLiveInventory($this->cache->remember(
+            CacheRebuildDomain::Products,
+            'detail',
+            ['slug' => $slug],
+            fn (): ?Product => $this->findPublicBySlugUncached($slug),
+        ));
+    }
+
+    public function paginateUncached(array $filters): LengthAwarePaginator
+    {
+        $query = $this->publicListingQuery();
+
+        $this->applyFilters($query, $filters);
+        $this->applySort($query, $filters['sort'] ?? 'newest');
+
+        return $query->paginate(
+            (int) ($filters['per_page'] ?? 24),
+            ['*'],
+            'page',
+            (int) ($filters['page'] ?? 1),
+        );
+    }
+
+    public function findPublicBySlugUncached(string $slug): ?Product
+    {
+        return Product::query()
+            ->where('status', 'published')
+            ->where('slug', $slug)
+            ->with([
+                'primaryImage',
+                'images',
+                'brand',
+                'categories',
+                'tags',
+                'attributes',
+                'attributeValues.attribute',
+                'variations' => fn ($query) => $query
+                    ->where('is_active', true)
+                    ->with('attributeValues.attribute'),
+            ])
+            ->first();
+    }
+
+    private function publicListingQuery(): Builder
+    {
+        return Product::query()
             ->where('status', 'published')
             ->with([
                 'primaryImage',
@@ -35,30 +110,81 @@ class ProductCatalogQuery
                     ]),
             ]);
 
-        $this->applyFilters($query, $filters);
-        $this->applySort($query, $filters['sort'] ?? 'newest');
-
-        return $query->paginate((int) ($filters['per_page'] ?? 24));
     }
 
-    public function findPublicBySlug(string $slug): ?Product
+    private function requiresLiveListing(array $filters): bool
     {
-        return Product::query()
-            ->where('status', 'published')
-            ->where('slug', $slug)
-            ->with([
-                'primaryImage',
-                'images',
-                'brand',
-                'categories',
-                'tags',
-                'attributes',
-                'attributeValues.attribute',
-                'variations' => fn ($query) => $query
-                    ->where('is_active', true)
-                    ->with('attributeValues.attribute'),
-            ])
-            ->first();
+        if (array_key_exists('in_stock', $filters)) {
+            return true;
+        }
+
+        if (filled($filters['min_price'] ?? null) || filled($filters['max_price'] ?? null)) {
+            return true;
+        }
+
+        return in_array($filters['sort'] ?? null, ['price_asc', 'price_desc'], true);
+    }
+
+    private function refreshLiveInventory(Product|LengthAwarePaginator|null $result): Product|LengthAwarePaginator|null
+    {
+        $products = $result instanceof LengthAwarePaginator
+            ? $result->getCollection()->filter(fn (mixed $product): bool => $product instanceof Product)
+            : collect($result === null ? [] : [$result]);
+
+        if ($products->isEmpty()) {
+            return $result;
+        }
+
+        $states = Product::query()
+            ->whereKey($products->pluck('id')->all())
+            ->get(['id', 'stock_quantity', 'stock_status', 'manage_stock'])
+            ->keyBy('id');
+
+        $products->each(function (Product $product) use ($states): void {
+            $state = $states->get($product->id);
+
+            if ($state === null) {
+                return;
+            }
+
+            $product->setRawAttributes([
+                ...$product->getAttributes(),
+                'stock_quantity' => $state->stock_quantity,
+                'stock_status' => $state->stock_status,
+                'manage_stock' => $state->manage_stock,
+            ], true);
+        });
+
+        $variations = $products
+            ->filter(fn (Product $product): bool => $product->relationLoaded('variations'))
+            ->flatMap(fn (Product $product): Collection => $product->variations)
+            ->keyBy('id');
+
+        if ($variations->isEmpty()) {
+            return $result;
+        }
+
+        $variationStates = ProductVariation::query()
+            ->whereKey($variations->keys())
+            ->get(['id', 'stock_quantity', 'stock_status', 'manage_stock'])
+            ->keyBy('id');
+
+        $variations->each(function (ProductVariation $variation) use ($variationStates): void {
+            $state = $variationStates->get($variation->id);
+
+            if ($state === null) {
+                return;
+            }
+
+            $variation->setRawAttributes([
+                ...$variation->getAttributes(),
+                'stock_quantity' => $state->stock_quantity,
+                'stock_status' => $state->stock_status,
+                'manage_stock' => $state->manage_stock,
+            ], true);
+        });
+
+        return $result;
     }
 
     private function applyFilters(Builder $query, array $filters): void

@@ -59,6 +59,7 @@ class SettingResource extends Resource
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'catalog' => 'فروشگاه',
                         'blog' => 'مجله',
+                        'cache' => 'کش و صف',
                         'shipping' => 'ارسال',
                         'tax' => 'مالیات',
                         'payment' => 'پرداخت',

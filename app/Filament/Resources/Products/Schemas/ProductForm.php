@@ -82,13 +82,11 @@ class ProductForm
 
                 TextInput::make('name')
                     ->required()
-                    ->live(onBlur: true)
-                    ->afterStateUpdated(fn ($state, callable $set) => $set('slug', static::makeSlug($state, 'product')))
                     ->maxLength(255),
 
                 // این یکی در فرم اصلی است، پس unique(ignoreRecord: true) درست کار می‌کند
                 TextInput::make('slug')
-                    ->required()
+                    ->nullable()
                     ->unique(ignoreRecord: true)
                     ->maxLength(255),
 

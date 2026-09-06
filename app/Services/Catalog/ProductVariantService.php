@@ -7,6 +7,7 @@ use App\Models\AttributeValue;
 use App\Models\Product;
 use App\Models\ProductVariation;
 use App\Services\Inventory\InventoryService;
+use App\Services\Storefront\StorefrontDetailCacheRefreshService;
 use DomainException;
 use Illuminate\Database\QueryException;
 use Illuminate\Support\Arr;
@@ -14,7 +15,10 @@ use Illuminate\Support\Facades\DB;
 
 class ProductVariantService
 {
-    public function __construct(private readonly InventoryService $inventory) {}
+    public function __construct(
+        private readonly InventoryService $inventory,
+        private readonly StorefrontDetailCacheRefreshService $detailRefreshes,
+    ) {}
 
     public function create(Product $product, array $attributes, array $attributeValueIds): ProductVariation
     {
@@ -56,6 +60,14 @@ class ProductVariantService
             }
 
             $this->removeStaleVariations($product, $keptVariationIds);
+        });
+
+        DB::afterCommit(function () use ($product): void {
+            $this->detailRefreshes->requestProduct(
+                $product->getKey(),
+                $product->slug,
+                $product->status === 'published',
+            );
         });
     }
 

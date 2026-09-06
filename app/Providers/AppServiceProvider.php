@@ -10,7 +10,15 @@ use App\Events\CustomerLifecycle\ShipmentDelivered;
 use App\Events\CustomerLifecycle\ShipmentReady;
 use App\Events\CustomerLifecycle\ShipmentShipped;
 use App\Listeners\Notifications\CreateCustomerLifecycleNotification;
+use App\Models\Post;
+use App\Models\Product;
+use App\Models\ProductImage;
+use App\Models\ProductVariation;
 use App\Models\User;
+use App\Observers\PostStorefrontCacheObserver;
+use App\Observers\ProductImageStorefrontCacheObserver;
+use App\Observers\ProductStorefrontCacheObserver;
+use App\Observers\ProductVariationStorefrontCacheObserver;
 use App\Services\Payments\PaymentCallbackSigner;
 use App\Services\Payments\PaymentGatewayConfiguration;
 use App\Services\Payments\PaymentGatewayRegistry;
@@ -53,6 +61,11 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(CommandStarting::class, function (CommandStarting $event): void {
             DatabaseSafetyGuard::assertNoDestructiveArtisanCommand((string) $event->command);
         });
+
+        Product::observe(ProductStorefrontCacheObserver::class);
+        Post::observe(PostStorefrontCacheObserver::class);
+        ProductImage::observe(ProductImageStorefrontCacheObserver::class);
+        ProductVariation::observe(ProductVariationStorefrontCacheObserver::class);
 
         View::composer('storefront.*', function ($view): void {
             $context = app(StorefrontCartContext::class);

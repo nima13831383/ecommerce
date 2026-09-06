@@ -11,6 +11,7 @@ use App\Services\Sms\SmsGatewayConfiguration;
 use App\Settings\SettingDefinition;
 use App\Settings\SettingRegistry;
 use Illuminate\Contracts\Encryption\DecryptException;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -232,6 +233,7 @@ class SettingsService
         }
 
         $this->assertShippingSetting($definition->key, $normalized);
+        $this->assertCacheSetting($definition->key, $normalized);
         $this->assertSmsSetting($definition->key, $normalized);
 
         return $normalized;
@@ -301,6 +303,19 @@ class SettingsService
             if (! is_array($package) || blank($package['id'] ?? null) || blank($package['name'] ?? null) || ! is_numeric($package['capacity_volume'] ?? null) || (float) $package['capacity_volume'] <= 0 || ! is_numeric($package['max_weight'] ?? null) || (float) $package['max_weight'] <= 0 || ! in_array((int) ($package['code'] ?? 0), $codes, true)) {
                 throw ValidationException::withMessages(['value' => 'تنظیم بسته‌بندی نامعتبر است.']);
             }
+        }
+    }
+
+    private function assertCacheSetting(string $key, mixed $value): void
+    {
+        if ($key !== 'cache.store' || $value !== 'redis') {
+            return;
+        }
+
+        try {
+            Cache::store('redis')->get('storefront:readiness:probe');
+        } catch (\Throwable) {
+            throw ValidationException::withMessages(['value' => 'ردیس در محیط فعلی در دسترس نیست؛ امکان فعال‌سازی کش Redis وجود ندارد.']);
         }
     }
 

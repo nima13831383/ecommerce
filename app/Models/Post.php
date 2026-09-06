@@ -14,6 +14,9 @@ class Post extends Model
 {
     use SoftDeletes;
 
+    /** @var array<string, mixed>|null */
+    public ?array $storefrontCachePrevious = null;
+
     protected $fillable = ['author_id', 'title', 'slug', 'excerpt', 'content', 'featured_image', 'status', 'views', 'published_at'];
 
     protected $casts = [
@@ -43,6 +46,14 @@ class Post extends Model
             if ($status === PostStatus::Published && (! $post->published_at || $post->published_at->isFuture())) {
                 throw ValidationException::withMessages(['published_at' => 'نوشته منتشرشده باید زمان انتشار معتبر داشته باشد.']);
             }
+        });
+
+        static::updating(function (self $post): void {
+            $post->storefrontCachePrevious = [
+                'slug' => $post->getOriginal('slug'),
+                'status' => $post->getOriginal('status'),
+                'published_at' => $post->getOriginal('published_at'),
+            ];
         });
     }
 

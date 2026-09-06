@@ -75,6 +75,8 @@ Analyze them first and improve them where necessary.
 
 # Critical Domain: Products
 
+Product slug policy: existing Product slugs are stable and never follow name edits automatically. Automatic generation occurs only when the slug is blank, preserves Persian/Unicode characters, converts whitespace to hyphens, and uses deterministic numeric suffixes for generated collisions. Explicit administrator slugs remain unchanged and must be unique. Existing Product slugs must never be bulk-regenerated without explicit authorization.
+
 The product system is one of the most important parts of this project.
 
 The project must support multiple product types.
@@ -552,6 +554,20 @@ Do not scatter cache deletion logic randomly throughout controllers and models.
 
 Be careful with wildcard deletion patterns that may become expensive at scale.
 
+### Storefront Query Cache
+
+Public Product and Blog archive/detail queries use the centralized `StorefrontQueryCache` adapter. Its selected backend comes only from the persisted Core Site Setting `cache.store`; Redis host, port, credentials, TLS, and database indexes remain environment/configuration infrastructure. Never change `cache.default` dynamically from a request and never make configuration files query Site Settings.
+
+The adapter must remain backend-neutral across database and Redis cache stores. Do not use Redis-only tags, wildcard key scans, or `Cache::flush()` for storefront cache maintenance. Cache keys must be canonicalized, cache stampedes must use atomic/distributed locks, and manual rebuilds must use build-before-swap cache generations so a failed or incomplete rebuild never replaces a healthy generation. Generation manifests must support targeted, asynchronous cleanup: retain the active and immediately previous successful generation through a bounded grace period, then prune older generation keys without touching unrelated cache state.
+
+Product and Post archive, category, search, filter, and pagination caches remain TTL/SWR or explicit-manual-rebuild driven; Product/Post edits never create a new generation or broadly invalidate those archive keys. Successful after-commit Product metadata edits trigger only that Product detail cache's targeted `cache-refresh` warm, and successful after-commit Post edits do the same only for that Article detail cache. A normal public detail update first becomes stale/refresh-needed while retaining its safe SWR fallback until the replacement succeeds. Slug changes, unpublishing, and deletion invalidate obsolete public detail keys without preserving them as customer-visible fallback. Inventory/reservation writes do not trigger Product metadata detail refresh. Transactional inventory, active reservations, Cart/session data, customer-specific state, and other authoritative live commerce state must never be served as stale cache truth.
+
+### Storefront Cache Queue and Horizon
+
+Storefront cache rebuild jobs always use the dedicated `cache-rebuild` queue, are idempotent by rebuild-run/generation identity, and are tagged as cache jobs for Horizon. An admin action must only enqueue a rebuild; it must never synchronously warm a full catalog or blog archive.
+
+Queue connection selection remains infrastructure configuration. Local development may use database queues. Production Redis queues may be monitored with Horizon, which requires Redis and does not monitor database queue workers. Horizon may be installed on local Windows without being executable there; production must satisfy its real `pcntl` and `posix` platform requirements. Cache rebuild operational history has bounded retention and must never prune pending, queued, or running runs. Scheduled rebuild recovery and generation pruning must use Laravel overlap prevention and single-server safeguards for multi-node deployments.
+
 ---
 
 # Redis
@@ -760,7 +776,7 @@ Important domain invariants should also be protected inside the domain/applicati
 
 # Frontend
 
-The final customer storefront will be implemented as **Laravel Blade SSR** inside this Laravel application. The website language is Persian/Farsi and the storefront must support RTL content and SEO-friendly server-rendered HTML.
+The customer storefront is implemented as Laravel Blade SSR inside this Laravel application. The website language is Persian/Farsi and the storefront must support RTL content and SEO-friendly server-rendered HTML.
 
 The raw template at `D:\uni-shop-project\front` is an existing static HTML/Tailwind/jQuery design source. It is not a separate frontend application, React/Vue app, remote SPA, API-only client, or separately deployed customer application. Do not recreate its design from scratch unless explicitly requested.
 
@@ -1407,3 +1423,9 @@ Current priorities are:
 The goal is not merely to make features work.
 
 The goal is to build a maintainable, scalable, production-ready e-commerce system.
+
+## Storefront Cache Stampede and Refresh-Ahead
+
+Stale-while-revalidate remains the primary expiry-path behavior: lock losers with usable stale content return it immediately. Hard-miss lock losers never execute the builder or expose an uncaught lock timeout; use bounded rereads, then only a same-domain/same-backend previous-generation equivalent fallback, otherwise a controlled temporary-unavailable response.
+
+The cache lock lease must exceed measured normal builder duration with safety margin. Before a builder writes, verify current lock ownership where Laravel supports it; backend-neutral Laravel locks have no portable lease-renewal guarantee. Refresh-ahead supplements locks rather than replacing them: limit it to explicit canonical archive page-one keys, write only the still-active generation, and yield to manual generation rebuilds. Do not broadly proactively refresh searches, filters, details, or high-cardinality keys.

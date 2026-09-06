@@ -1,5 +1,6 @@
 <?php
 
+use App\Enums\CacheRebuildDomain;
 use App\Enums\CustomerNotificationType;
 use App\Enums\OrderStatus;
 use App\Models\Cart;
@@ -18,7 +19,9 @@ use App\Services\Notifications\CustomerNotificationService;
 use App\Services\Orders\OrderService;
 use App\Services\Payments\PaymentGatewayRegistry;
 use App\Services\Payments\PaymentService;
+use App\Services\Storefront\StorefrontQueryCache;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Support\Facades\DB;
 use Tests\Support\Payments\FakePaymentGateway;
 
 require dirname(__DIR__, 3).'/vendor/autoload.php';
@@ -42,6 +45,7 @@ $couponCart = null;
 $couponOrder = null;
 $shipmentOrder = null;
 $notificationOrder = null;
+$cacheCounterSettingId = null;
 if (($payload['operation'] ?? null) === 'checkout') {
     $checkoutData = $payload['data'];
     $checkoutUser = User::query()->findOrFail((int) $checkoutData['user_id']);
@@ -72,6 +76,9 @@ if (($payload['operation'] ?? null) === 'shipment_ensure') {
 }
 if (($payload['operation'] ?? null) === 'notification_intent') {
     $notificationOrder = Order::query()->findOrFail((int) $payload['data']['order_id']);
+}
+if (($payload['operation'] ?? null) === 'storefront_cache_rebuild') {
+    $cacheCounterSettingId = (int) $payload['data']['setting_id'];
 }
 file_put_contents("{$barrier}/{$worker}.ready", (string) getmypid());
 $deadline = microtime(true) + 10;
@@ -165,6 +172,21 @@ try {
                 'attempts' => $notification->attempts,
                 'idempotency_key' => $notification->idempotency_key,
             ];
+        })(),
+        'storefront_cache_rebuild' => (static function () use ($cacheCounterSettingId, $payload): array {
+            $value = app(StorefrontQueryCache::class)->remember(
+                CacheRebuildDomain::Products,
+                'concurrency-probe',
+                ['probe' => (string) $payload['data']['probe']],
+                function () use ($cacheCounterSettingId): string {
+                    DB::table('settings')->where('id', $cacheCounterSettingId)->increment('value');
+                    usleep((int) ($payload['data']['sleep_us'] ?? 200000));
+
+                    return 'rebuilt-once';
+                },
+            );
+
+            return ['value' => $value];
         })(),
         default => throw new InvalidArgumentException('Unknown worker operation.'),
     };

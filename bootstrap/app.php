@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\StorefrontCacheUnavailableException;
 use Illuminate\Auth\AuthenticationException;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Application;
@@ -21,6 +22,14 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->render(function (Throwable $exception, Request $request) {
+            if ($exception instanceof StorefrontCacheUnavailableException) {
+                $headers = ['Retry-After' => '2'];
+                if ($request->is('api/v1/*')) {
+                    return response()->json(['message' => 'این بخش موقتاً در حال به‌روزرسانی است. لطفاً چند لحظه دیگر دوباره تلاش کنید.', 'errors' => [], 'code' => 'storefront_cache_unavailable'], 503, $headers);
+                }
+
+                return response()->view('errors.storefront-cache-unavailable', [], 503, $headers);
+            }
             if (! $request->is('api/v1/*')) {
                 return null;
             }

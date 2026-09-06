@@ -22,6 +22,12 @@ class SettingForm
             TextInput::make('key')->label('کلید داخلی')->disabled()->dehydrated(false),
             TextInput::make('type')->label('نوع مقدار')->disabled()->dehydrated(),
             Select::make('value_string')
+                ->label('محل ذخیره کش فروشگاه')
+                ->options(SettingRegistry::get('cache.store')->options)
+                ->visible(fn (Get $get): bool => $get('key') === 'cache.store')
+                ->required(fn (Get $get): bool => $get('key') === 'cache.store')
+                ->helperText('Redis فقط زمانی قابل انتخاب است که اتصال زیرساختی آن در ENV در دسترس باشد.'),
+            Select::make('value_string')
                 ->label('روش محاسبه هزینه ارسال')
                 ->options(SettingRegistry::get('shipping.mode')->options)
                 ->visible(fn (Get $get): bool => $get('key') === 'shipping.mode')
@@ -58,6 +64,9 @@ class SettingForm
                 ->label('حالت Sandbox SMS.ir')
                 ->visible(fn (Get $get): bool => $get('key') === 'sms.smsir.sandbox')
                 ->helperText('در Sandbox از قالب ثابت با شناسه ۱۲۳۴۵۶ و پارامتر CODE استفاده می‌شود؛ فقط برای توسعه/آزمایش.'),
+            Toggle::make('value_boolean')
+                ->label('بازسازی پیشگیرانه صفحات پرترافیک')
+                ->visible(fn (Get $get): bool => $get('key') === 'cache.refresh_ahead.enabled'),
             TextInput::make('value_secret')
                 ->label('مرچنت آیدی زرین‌پال')
                 ->password()
@@ -122,6 +131,25 @@ class SettingForm
                 ->maxValue(100)
                 ->required()
                 ->helperText('عدد صحیح بین ۱ تا ۱۰۰.'),
+            TextInput::make('value_number')
+                ->label(fn (Get $get): string => match ($get('key')) {
+                    'cache.products.ttl_seconds' => 'اعتبار کش محصولات (ثانیه)',
+                    'cache.blog.ttl_seconds' => 'اعتبار کش مقالات (ثانیه)',
+                    'cache.lock_seconds' => 'مدت قفل بازسازی (ثانیه)',
+                    'cache.stale_seconds' => 'مدت داده قدیمی (ثانیه)',
+                    default => 'عدد صحیح',
+                })
+                ->visible(fn (Get $get): bool => in_array($get('key'), [
+                    'cache.products.ttl_seconds',
+                    'cache.blog.ttl_seconds',
+                    'cache.lock_seconds',
+                    'cache.stale_seconds',
+                ], true))
+                ->numeric()
+                ->integer()
+                ->minValue(5)
+                ->maxValue(604800)
+                ->required(),
             TextInput::make('value_number')
                 ->label(fn (Get $get): string => match ($get('key')) {
                     'auth.otp.code_length' => 'طول کد تأیید',
