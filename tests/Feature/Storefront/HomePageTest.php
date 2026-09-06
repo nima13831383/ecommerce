@@ -29,6 +29,33 @@ test('the storefront home page references migrated local assets', function (): v
     foreach ($assetPaths as $assetPath) {
         expect(file_exists(base_path($assetPath)))->toBeTrue($assetPath);
     }
+
+    foreach (['hero/desktop/1.png', 'hero/desktop/2.png', 'hero/desktop/3.png', 'hero/mobile/1.png', 'hero/mobile/2.png', 'hero/mobile/3.png', 'promos/accessories.png', 'promos/skincare.png'] as $assetPath) {
+        expect(file_exists(base_path('public/storefront/assets/homepage/'.$assetPath)))->toBeTrue($assetPath);
+    }
+});
+
+test('the storefront home page uses paired hero artwork and configured branding with a safe fallback', function (): void {
+    $response = $this->get('/');
+
+    $response->assertOk()
+        ->assertSee('assets/homepage/hero/desktop/1.png', false)
+        ->assertSee('assets/homepage/hero/mobile/1.png', false)
+        ->assertSee('assets/homepage/promos/accessories.png', false)
+        ->assertSee('assets/homepage/promos/skincare.png', false)
+        ->assertSee('storefront/luxira-icon.png', false)
+        ->assertSee('data-component="hero-slider"', false);
+});
+
+test('shared header removes category and brand navigation while newsletter keeps the shared design', function (): void {
+    $response = $this->get('/');
+
+    $response->assertOk()
+        ->assertDontSee('href="#categories"', false)
+        ->assertDontSee('href="#brands"', false)
+        ->assertSee('در خبرنامه لوکسیرا عضو شوید')
+        ->assertSee('assets/css/components/newsletter-shared.css', false)
+        ->assertSee('not-found-newsletter', false);
 });
 
 test('existing API, Breeze, and Filament route registrations remain available', function (): void {

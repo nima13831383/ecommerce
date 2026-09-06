@@ -6,6 +6,7 @@
   $form.on('submit', function (event) {
     event.preventDefault();
     const query = $.trim($(this).find('input').val());
-    window.location.href = 'search.html' + (query ? '?q=' + encodeURIComponent(query) : '');
+    const action = $form.attr('action') || '/products';
+    window.location.href = action + (query ? '?search=' + encodeURIComponent(query) : '');
   });
 }(window.jQuery));

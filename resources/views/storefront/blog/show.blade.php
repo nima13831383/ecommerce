@@ -3,6 +3,7 @@
 @push('head')
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/blog/layout.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/blog/responsive.css') }}">
+    <link rel="stylesheet" href="{{ asset('storefront/assets/css/components/public-page.css') }}">
 @endpush
 
 @section('content')

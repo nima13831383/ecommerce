@@ -70,3 +70,28 @@ test('blog listing paginates, returns an empty state, and article detail uses un
     $this->get(route('storefront.blog.show', ['post' => $future->slug]))->assertNotFound();
     $this->get(route('storefront.blog.show', ['post' => $draft->slug]))->assertNotFound();
 });
+
+test('blog pagination keeps the archive route and preserves active filters', function (): void {
+    $category = PostCategory::query()->create(['name' => 'راهنمای خرید', 'slug' => 'guide']);
+
+    for ($index = 0; $index < 11; $index++) {
+        $post = storefrontPublishedPost('paged-'.$index, ['title' => "مطلب صفحه {$index}"]);
+        $post->categories()->attach($category);
+    }
+
+    $pageOne = $this->get(route('storefront.blog.index', ['category' => 'guide', 'search' => 'مطلب']));
+    $pageOne->assertOk()
+        ->assertSee(e(route('storefront.blog.index', ['category' => 'guide', 'search' => 'مطلب', 'page' => 2])), false)
+        ->assertDontSee('href="http://127.0.0.1:8000/?', false);
+
+    $this->get(route('storefront.blog.index', ['category' => 'guide', 'search' => 'مطلب', 'page' => 2]))
+        ->assertOk()
+        ->assertSee('مطلب صفحه 0')
+        ->assertSee('article-pagination');
+});
+
+test('blog archive breadcrumb matches the raw RTL structure and links home', function (): void {
+    $this->get(route('storefront.blog.index'))
+        ->assertOk()
+        ->assertSee('<div class="public-breadcrumb"><a href="'.route('storefront.home').'">خانه</a><span>/</span><span>وبلاگ</span></div>', false);
+});

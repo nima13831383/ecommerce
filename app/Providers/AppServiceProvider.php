@@ -25,6 +25,7 @@ use App\Services\Payments\PaymentGatewayRegistry;
 use App\Services\Payments\ZarinPalPaymentGateway;
 use App\Services\Payments\ZarinPalSdkClient;
 use App\Services\Sms\SmsIrOtpSender;
+use App\Services\Storefront\StorefrontBranding;
 use App\Services\Storefront\StorefrontCartContext;
 use App\Support\DatabaseSafetyGuard;
 use Illuminate\Console\Events\CommandStarting;
@@ -69,7 +70,10 @@ class AppServiceProvider extends ServiceProvider
 
         View::composer('storefront.*', function ($view): void {
             $context = app(StorefrontCartContext::class);
-            $view->with('storefrontCart', $context->present($context->current()));
+            $view->with([
+                'storefrontCart' => $context->present($context->current()),
+                'storefrontLogo' => app(StorefrontBranding::class)->logoUrl(),
+            ]);
         });
 
         Event::listen([

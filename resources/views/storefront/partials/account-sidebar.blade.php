@@ -8,6 +8,6 @@
             <a class="{{ request()->routeIs('storefront.account.profile') ? 'is-active' : '' }}" href="{{ route('storefront.account.profile') }}"><svg class="icon"><use href="#i-user"></use></svg>اطلاعات حساب</a>
             <a class="{{ request()->routeIs('storefront.account.orders*') ? 'is-active' : '' }}" href="{{ route('storefront.account.orders') }}"><svg class="icon"><use href="#i-package"></use></svg>سفارش‌های من</a>
             <a class="{{ request()->routeIs('storefront.account.addresses*') ? 'is-active' : '' }}" href="{{ route('storefront.account.addresses') }}"><svg class="icon"><use href="#i-map-pin"></use></svg>آدرس‌های من</a>
-            <form method="POST" action="{{ route('logout') }}">@csrf <button class="text-button text-button--danger" type="submit"><svg class="icon"><use href="#i-logout"></use></svg>خروج</button></form>
+            <div class="account-nav__logout"><form method="POST" action="{{ route('logout') }}">@csrf <button class="text-button text-button--danger" type="submit"><svg class="icon"><use href="#i-logout"></use></svg>خروج</button></form></div>
         </nav>
 </aside>

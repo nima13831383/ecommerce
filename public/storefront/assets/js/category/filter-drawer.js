@@ -12,7 +12,7 @@
 
   $drawer.append('<div class="category-filter-drawer__header"><h2 id="category-filter-title">فیلتر محصولات</h2><button type="button" class="category-filter-drawer__close" data-filter-close aria-label="بستن فیلترها">×</button></div>');
   $drawer.append($form.find('.filter-group').clone());
-  $drawer.append('<div class="category-filter-drawer__footer"><button type="button" class="filter-actions__reset" data-filter-reset>پاک کردن</button><button type="button" class="filter-actions__apply" data-filter-apply>اعمال فیلترها</button></div>');
+  $drawer.append('<div class="category-filter-drawer__footer"><button type="button" class="filter-actions__reset" data-filter-reset>پاک کردن فیلترها</button></div>');
   $('body').append($backdrop, $drawer);
 
   function localized(value) {
@@ -65,7 +65,7 @@
     $open.attr('aria-expanded', 'true');
     $drawer.find('[data-filter-close]').trigger('focus');
   });
-  $drawer.on('click.categoryFilters', '[data-filter-close], [data-filter-apply]', function () { closeDrawer(); });
+  $drawer.on('click.categoryFilters', '[data-filter-close]', function () { closeDrawer(); });
   $backdrop.on('click.categoryFilters', function () { closeDrawer(); });
   $(document).on('keydown.categoryFilters', function (event) { if (event.key === 'Escape' && $drawer.hasClass('is-open')) closeDrawer(); });
   $(window).on('resize.categoryFilters', function () { if (window.innerWidth > 900 && $drawer.hasClass('is-open')) closeDrawer(false); });

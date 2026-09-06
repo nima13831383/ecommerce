@@ -23,6 +23,7 @@
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/homepage/banners.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/homepage/brands.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/homepage/newsletter.css') }}">
+    <link rel="stylesheet" href="{{ asset('storefront/assets/css/components/newsletter-shared.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/homepage/footer.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/homepage/responsive.css') }}">
     @stack('head')
@@ -44,7 +45,6 @@
     <script src="{{ asset('storefront/assets/vendor/jquery/jquery.min.js') }}" defer></script>
     <script src="{{ asset('storefront/assets/js/homepage/mobile-menu.js') }}" defer></script>
     <script src="{{ asset('storefront/assets/js/homepage/cart-dropdown.js') }}" defer></script>
-    <script src="{{ asset('storefront/assets/js/homepage/sticky-header.js') }}" defer></script>
     <script src="{{ asset('storefront/assets/js/homepage/hero-slider.js') }}" defer></script>
     <script src="{{ asset('storefront/assets/js/homepage/product-slider.js') }}" defer></script>
     <script src="{{ asset('storefront/assets/js/homepage/newsletter.js') }}" defer></script>

@@ -119,9 +119,34 @@ test('empty orders and account dashboard use real order data without fake metric
     $this->actingAs($user)->get(route('storefront.account'))
         ->assertOk()
         ->assertSee($order->order_number)
-        ->assertSee('مشاهده همه (1)')
+        ->assertSee('مشاهده همه سفارش‌ها')
         ->assertDontSee('کیف پول')
         ->assertDontSee('امتیاز وفاداری');
+});
+
+test('account dashboard summary cards use real pending, completed, and address data', function (): void {
+    $user = User::factory()->create();
+    $product = storefrontOrderProduct('dashboard-cards');
+    $pending = storefrontOrderFor($user, $product, 'pending');
+    $completed = storefrontOrderFor($user, $product, 'completed');
+
+    app(OrderService::class)->transitionStatus($completed, OrderStatus::AwaitingPayment);
+    app(OrderService::class)->transitionStatus($completed, OrderStatus::Processing);
+    app(OrderService::class)->transitionStatus($completed, OrderStatus::Completed);
+
+    $response = $this->actingAs($user)->get(route('storefront.account'));
+
+    $response->assertOk()
+        ->assertSee('سفارش‌های در انتظار')
+        ->assertSee('سفارش‌های تکمیل‌شده')
+        ->assertSee('آدرس‌های ثبت‌شده')
+        ->assertSee('علاقه‌مندی‌ها')
+        ->assertSee('این بخش به‌زودی فعال می‌شود')
+        ->assertSee(PersianNumber::digits(1))
+        ->assertSee('اطلاعات حساب')
+        ->assertSee('آخرین سفارش‌ها')
+        ->assertSee($pending->order_number)
+        ->assertSee($completed->order_number);
 });
 
 test('order detail renders snapshots, statuses, timeline, safe payment retry, and survives product deletion', function (): void {

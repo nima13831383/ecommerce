@@ -1,0 +1,5 @@
+.public-page{padding-block:28px 64px}
+.public-page .public-breadcrumb{display:flex;align-items:center;gap:8px;margin:0 0 24px;color:var(--muted);font-size:.72rem}
+.public-page .public-breadcrumb a{color:var(--ink)}
+.article-page>header.article-header{position:static;inset:auto;z-index:auto}
+@media(max-width:900px){.public-page{padding-block:20px 45px}.public-page .public-breadcrumb{margin-bottom:20px}}

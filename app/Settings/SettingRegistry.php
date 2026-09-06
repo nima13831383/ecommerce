@@ -11,6 +11,16 @@ final class SettingRegistry
     public static function definitions(): array
     {
         return [
+            'branding.logo_path' => new SettingDefinition(
+                key: 'branding.logo_path',
+                group: 'branding',
+                type: 'string',
+                default: null,
+                label: 'لوگوی سایت',
+                rules: ['nullable', 'string', 'max:255'],
+                nullable: true,
+                description: 'تصویر لوگوی عمومی فروشگاه؛ در صورت خالی بودن از لوگوی پیش‌فرض استفاده می‌شود.',
+            ),
             'catalog.products_per_page' => new SettingDefinition(
                 key: 'catalog.products_per_page',
                 group: 'catalog',

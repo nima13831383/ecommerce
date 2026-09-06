@@ -21,11 +21,14 @@ class AccountController extends Controller
         $recentOrders = $this->orders->recentFor($user)
             ->map(fn ($order): array => $this->orderPresenter->summary($order))
             ->all();
+        $dashboardCounts = $this->orders->dashboardCounts($user);
 
         return view('storefront.account.index', [
             'user' => $user,
+            'completedOrderCount' => $dashboardCounts['completed'],
+            'pendingOrderCount' => $dashboardCounts['pending'],
             'addressCount' => $user->addresses()->count(),
-            'orderCount' => $user->orders()->count(),
+            'orderCount' => $dashboardCounts['total'],
             'recentOrders' => $recentOrders,
             'title' => 'حساب کاربری | لوکسیر',
         ]);

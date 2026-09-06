@@ -3,6 +3,7 @@
 @push('head')
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/blog/layout.css') }}">
     <link rel="stylesheet" href="{{ asset('storefront/assets/css/blog/responsive.css') }}">
+    <link rel="stylesheet" href="{{ asset('storefront/assets/css/components/public-page.css') }}">
 @endpush
 
 @section('content')
@@ -20,7 +21,7 @@
             @php($featured = $posts->first())
             <article class="public-card featured-article">
                 <div class="article-media">@if ($featured->featured_image)<img src="{{ \Illuminate\Support\Facades\Storage::disk(config('media.public_disk', 'public'))->url($featured->featured_image) }}" alt="{{ $featured->title }}">@else<span>جای تصویر مقاله منتخب</span>@endif</div>
-                <div class="article-copy">@if ($featured->categories->first())<span class="article-badge">{{ $featured->categories->first()->name }}</span>@endif<h2>{{ $featured->title }}</h2>@if ($featured->excerpt)<p>{{ $featured->excerpt }}</p>@endif<a class="article-link" href="{{ route('storefront.blog.show', ['post' => $featured->slug]) }}">ادامه مطلب</a></div>
+                <div class="article-copy">@if ($featured->categories->first())<span class="article-badge">{{ $featured->categories->first()->name }}</span>@endif<h2>{{ $featured->title }}</h2>@if ($featured->excerpt)<p>{{ $featured->excerpt }}</p>@endif<div class="article-meta"><span>{{ \App\Support\JalaliDate::format($featured->published_at, 'j F Y') }}</span></div><a class="article-link" href="{{ route('storefront.blog.show', ['post' => $featured->slug]) }}">ادامه مطلب</a></div>
             </article>
         @endif
         <div class="article-grid">

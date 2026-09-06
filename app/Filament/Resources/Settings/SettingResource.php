@@ -58,6 +58,7 @@ class SettingResource extends Resource
                 TextColumn::make('group')->label('گروه')->badge()->sortable()
                     ->formatStateUsing(fn (string $state): string => match ($state) {
                         'catalog' => 'فروشگاه',
+                        'branding' => 'هویت بصری',
                         'blog' => 'مجله',
                         'cache' => 'کش و صف',
                         'shipping' => 'ارسال',

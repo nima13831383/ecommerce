@@ -34,7 +34,7 @@ function paymentSettingsEditor(): User
 }
 
 test('payment core settings are registered and freshly persisted with safe defaults', function (): void {
-    expect(SettingRegistry::coreDefinitions())->toHaveCount(30);
+    expect(SettingRegistry::coreDefinitions())->toHaveCount(31);
 
     foreach ([
         'payment.default_gateway',
@@ -179,7 +179,7 @@ test('settings status and legacy import never expose a merchant credential', fun
 
     $this->artisan('settings:status')
         ->assertExitCode(Command::SUCCESS)
-        ->expectsOutputToContain('Registered: 30')
+        ->expectsOutputToContain('Registered: 31')
         ->doesntExpectOutputToContain($merchantId);
     $this->artisan('payment:diagnose-zarinpal')
         ->assertExitCode(Command::SUCCESS)

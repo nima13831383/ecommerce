@@ -2,6 +2,7 @@
 
 namespace App\Services\Storefront;
 
+use App\Enums\OrderStatus;
 use App\Models\Order;
 use App\Models\User;
 use Illuminate\Contracts\Pagination\LengthAwarePaginator;
@@ -22,6 +23,24 @@ class StorefrontOrderQuery
     public function recentFor(User $user, int $limit = 3): Collection
     {
         return $this->base($user)->latest()->limit($limit)->get();
+    }
+
+    /** @return array{pending:int, completed:int, total:int} */
+    public function dashboardCounts(User $user): array
+    {
+        $query = Order::query()->whereBelongsTo($user);
+
+        return [
+            'pending' => (clone $query)->whereIn('status', [
+                OrderStatus::Pending,
+                OrderStatus::AwaitingPayment,
+                OrderStatus::Processing,
+                OrderStatus::Shipped,
+                OrderStatus::Delivered,
+            ])->count(),
+            'completed' => (clone $query)->where('status', OrderStatus::Completed)->count(),
+            'total' => (clone $query)->count(),
+        ];
     }
 
     public function findFor(User $user, string $identifier): Order

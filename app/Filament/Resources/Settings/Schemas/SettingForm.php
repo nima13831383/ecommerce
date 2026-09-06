@@ -6,6 +6,7 @@ use App\Models\TaxClass;
 use App\Services\Settings\SettingsService;
 use App\Services\Shipping\Data\WordpressShippingDataLoader;
 use App\Settings\SettingRegistry;
+use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
@@ -21,6 +22,14 @@ class SettingForm
             TextInput::make('group')->label('گروه')->disabled()->dehydrated(false),
             TextInput::make('key')->label('کلید داخلی')->disabled()->dehydrated(false),
             TextInput::make('type')->label('نوع مقدار')->disabled()->dehydrated(),
+            FileUpload::make('value_string')
+                ->label('لوگوی سایت')
+                ->image()
+                ->disk('public')
+                ->directory('branding')
+                ->maxSize(2048)
+                ->visible(fn (Get $get): bool => $get('key') === 'branding.logo_path')
+                ->helperText('تصویر لوگوی عمومی فروشگاه؛ در صورت خالی بودن لوگوی پیش‌فرض نمایش داده می‌شود.'),
             Select::make('value_string')
                 ->label('محل ذخیره کش فروشگاه')
                 ->options(SettingRegistry::get('cache.store')->options)

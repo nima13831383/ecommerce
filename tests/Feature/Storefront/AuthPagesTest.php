@@ -8,7 +8,7 @@ test('guest auth pages use the storefront presentation', function (): void {
         $this->get($uri)
             ->assertOk()
             ->assertSee('auth-form')
-            ->assertSee('<header>', false)
+            ->assertSee('<header class="storefront-main-header" data-storefront-main-header>', false)
             ->assertDontSee('auth-trust', false)
             ->assertDontSee('site-footer', false);
     }

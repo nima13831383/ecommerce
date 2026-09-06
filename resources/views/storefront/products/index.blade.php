@@ -49,7 +49,7 @@
                     <input type="hidden" name="search" value="{{ $filters['search'] ?? '' }}">
                     <input type="hidden" name="type" value="{{ $filters['type'] ?? '' }}">
                     <input type="hidden" name="sort" value="{{ $filters['sort'] ?? 'newest' }}">
-                    <div class="filter-actions"><button class="filter-actions__reset" type="reset" data-filter-reset>پاک کردن همه</button></div>
+                    <div class="filter-actions"><button class="filter-actions__reset" type="reset" data-filter-reset>پاک کردن فیلترها</button></div>
                 </form>
 
                 <section class="category-main" aria-labelledby="products-title">

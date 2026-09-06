@@ -20,12 +20,16 @@ class StorefrontBlogQuery
         $search = filled($search) ? trim($search) : null;
         $page = request()->integer('page', 1);
 
-        return $this->cache->remember(
+        $paginator = $this->cache->remember(
             CacheRebuildDomain::Blog,
             'archive',
             ['category' => $category, 'search' => $search, 'per_page' => $perPage, 'page' => $page],
             fn (): LengthAwarePaginator => $this->paginateUncached($category, $search, $perPage, $page),
         );
+
+        return $paginator
+            ->setPath(route('storefront.blog.index'))
+            ->appends(request()->except('page'));
     }
 
     public function findPublished(string $slug): Post
