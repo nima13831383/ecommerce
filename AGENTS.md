@@ -789,7 +789,7 @@ The Laravel backend and the raw template directory are separate codebases, but t
 3. Progressively convert the template into Blade layouts, components, partials, and pages; do not replace it with a generic generated UI.
 4. Preserve existing frontend behavior and styling unless a redesign is explicitly requested.
 
-The historical backend readiness audit remains documented in `FRONTEND_INTEGRATION_READINESS_2026-09-03.md`. It identified the lack of customer HTTP contracts at that time; it does not change the final Blade architecture defined here.
+The historical backend readiness audit remains documented in `docs/history/audits/FRONTEND_INTEGRATION_READINESS_2026-09-03.md`. It identified the lack of customer HTTP contracts at that time; it does not change the final Blade architecture defined here.
 
 ### Deployment and Authentication
 
@@ -1429,3 +1429,19 @@ The goal is to build a maintainable, scalable, production-ready e-commerce syste
 Stale-while-revalidate remains the primary expiry-path behavior: lock losers with usable stale content return it immediately. Hard-miss lock losers never execute the builder or expose an uncaught lock timeout; use bounded rereads, then only a same-domain/same-backend previous-generation equivalent fallback, otherwise a controlled temporary-unavailable response.
 
 The cache lock lease must exceed measured normal builder duration with safety margin. Before a builder writes, verify current lock ownership where Laravel supports it; backend-neutral Laravel locks have no portable lease-renewal guarantee. Refresh-ahead supplements locks rather than replacing them: limit it to explicit canonical archive page-one keys, write only the still-active generation, and yield to manual generation rebuilds. Do not broadly proactively refresh searches, filters, details, or high-cardinality keys.
+
+---
+
+# Documentation Maintenance
+
+Documentation is part of the Definition of Done. When a task changes behavior, architecture, operations, security, testing, routes, services, settings, cache/queue behavior, or deployment assumptions, update the relevant canonical page under `docs/` in the same change.
+
+Every modifying task must create a concise change record under:
+
+```text
+docs/changes/YYYY/MM/<record>.md
+```
+
+Keep one canonical source of truth for each rule. Do not leave stale guidance, duplicate competing instructions, or future-tense status descriptions after implementation is complete. Use explicit status headers such as `Canonical`, `Historical / Non-authoritative`, or `Working note`. Historical reports belong under `docs/history/` and must be preserved rather than silently deleted when their evidence may be useful.
+
+Maintain the documentation entry point, directory map, route map, service/model map, and command reference when repository structure changes. Validate relative Markdown links and referenced paths where practical, run `git diff --check`, and review documentation changes for secrets, credentials, private customer data, and unsafe operational instructions. Read `docs/README.md` after this file for the human/agent documentation order.
